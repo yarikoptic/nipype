@@ -1,0 +1,38 @@
+Source: nipype
+Section: science
+Priority: optional
+Maintainer: Experimental Psychology Maintainers <pkg-exppsy-maintainers@lists.alioth.debian.org>
+Uploaders: Yaroslav Halchenko <debian@onerussian.com>, Michael Hanke <michael.hanke@gmail.com>
+Build-Depends: cdbs, debhelper (>= 7), python-support (>= 0.6), python (>= 2.4), python-setuptools (>= 0.6), python-sphinx (>= 0.6)
+Standards-Version: 3.8.3
+Homepage: http://nipy.sourceforge.net/nipype/
+XS-Vcs-Git: git://git.debian.org/git/pkg-exppsy/nipype.git
+XS-Vcs-Browser: http://git.debian.org/?p=pkg-exppsy/nipype.git
+
+
+Package: python-nipype
+Architecture: all
+Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}, python-networkx (>= 1.0~rc1), python-scipy
+Recommends: fsl, python-nifti
+Suggests: lipsia, python-nipy
+Provides: ${python:Provides}
+XB-Python-Version: ${python:Versions}
+Description: Neuroimaging data analysis pipelines in Python
+ Nipype interfaces Python to other neuroimaging packages and creates
+ an API for specifying a full analysis pipeline in Python.  Currently,
+ it has interfaces for SPM, FSL, AFNI, Freesurfer, but could be
+ extended for other packages (such as lipsia).
+
+
+Package: python-nipype-doc
+Architecture: all
+Section: doc
+Depends: ${misc:Depends}, libjs-jquery
+Suggests: python-nipype
+Description: Neuroimaging data analysis pipelines in Python -- documentation
+ Nipype interfaces Python to other neuroimaging packages and creates
+ an API for specifying a full analysis pipeline in Python.  Currently,
+ it has interfaces for SPM, FSL, AFNI, Freesurfer, but could be
+ extended for other packages (such as lipsia).
+ .
+ This package contains Nipype documentation in various formats.

@@ -1,0 +1,14 @@
+Format-Specification: http://wiki.debian.org/Proposals/CopyrightFormat
+Upstream-Name: Nipype
+Upstream-Source-Location: https://sourceforge.net/projects/nipy/
+
+Files: *
+Copyright: Copyright, 2006-2009, NIPY Developers
+License: BSD-3
+  On Debian GNU/Linux systems, the complete text of the 3-clause BSD License
+  can be found in `/usr/share/common-licenses/BSD'.
+
+Files: debian/*
+Copyright: Copyright 2009,
+    Yaroslav Halchenko <debian@onerussian.com>
+License: BSD-3

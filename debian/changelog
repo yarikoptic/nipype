@@ -1,0 +1,5 @@
+nipype (0.1+svn647-1~pre1) unstable; urgency=low
+
+  * Initial release (Closes: #550080)
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Wed, 04 Nov 2009 23:03:07 -0500
