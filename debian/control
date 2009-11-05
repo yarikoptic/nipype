@@ -13,7 +13,7 @@ XS-Vcs-Browser: http://git.debian.org/?p=pkg-exppsy/nipype.git
 Package: python-nipype
 Architecture: all
 Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}, python-networkx (>= 1.0~rc1), python-scipy
-Recommends: fsl, python-nifti
+Recommends: fsl, python-nifti, ipython
 Suggests: lipsia, python-nipy
 Provides: ${python:Provides}
 XB-Python-Version: ${python:Versions}
