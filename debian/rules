@@ -26,7 +26,7 @@ endif
 
 # use jquery from Debian package
 # symlinked by debhelper
-install/python-nipy-doc::
+install/python-nipype-doc::
 	-rm doc/_build/html/_static/jquery.js
 
 # immediately useable documentation
