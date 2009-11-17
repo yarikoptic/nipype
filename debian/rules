@@ -14,7 +14,7 @@ DEB_DESTDIR = $(CURDIR)/debian/python-nipype
 #
 doc: doc-stamp
 doc-stamp: build/python-nipype
-	export PYTHONPATH=$$PWD/`/bin/ls -d build/lib*`; cd doc; $(MAKE) html
+	export PYTHONPATH=$$PWD; cd doc; $(MAKE) html
 	touch $@
 
 build/python-nipype-doc:: doc
