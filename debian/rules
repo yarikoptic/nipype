@@ -31,7 +31,8 @@ install/python-nipy-doc::
 # and exemplar data (they are small excerpts anyways)
 DEB_COMPRESS_EXCLUDE := .py .pdf .html .css .jpg .txt .js .json .rtc .par .bin
 # -doc package contents
-DEB_INSTALL_DOCS_python-nipy-doc := doc/build/html doc/build/latex/nipype.pdf
+DEB_INSTALL_DOCS_python-nipype-doc := doc/build/html
+#doc/build/latex/nipype.pdf
 
 clean::
 	rm -rf build
