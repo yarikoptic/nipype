@@ -17,8 +17,6 @@ Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}, python-networkx 
 Recommends: fsl, python-nifti, ipython
 Suggests: lipsia, python-nipy
 Provides: ${python:Provides}
-XS-Python-Version: >= 2.5
-XB-Python-Version: ${python:Versions}
 Description: Neuroimaging data analysis pipelines in Python
  Nipype interfaces Python to other neuroimaging packages and creates
  an API for specifying a full analysis pipeline in Python.  Currently,
