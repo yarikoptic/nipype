@@ -1,5 +1,7 @@
-nipype (0.1+svn694-1~pre1) unstable; urgency=low
+nipype (0.2-1) experimental; urgency=low
 
   * Initial release (Closes: #550080)
+  * Upload to experimental since python-networkx version only in the
+  experimental atm.
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Wed, 04 Nov 2009 23:03:07 -0500
