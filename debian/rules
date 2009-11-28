@@ -21,7 +21,7 @@ build/python-nipype-doc:: doc
 
 install/python-nipype::
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	PYTHONPATH=$(DEB_DESTDIR)/usr/lib/python2.5/site-packages python -c "import nipype; nipype.test(verbose=0);"
+	cd debian && PYTHONPATH=$(DEB_DESTDIR)/usr/lib/python2.5/site-packages python -c "import nipype; nipype.test(verbose=0);"
 endif
 
 # use jquery from Debian package
