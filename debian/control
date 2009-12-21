@@ -14,8 +14,8 @@ Package: python-nipype
 Section: python
 Architecture: all
 Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}, python-networkx (>= 1.0~rc1~), python-scipy, python-simplejson
-Recommends: fsl, python-nifti, ipython, python-nose
-Suggests: lipsia, python-nipy
+Recommends: python-nifti, ipython, python-nose
+Suggests: fsl, lipsia, python-nipy
 Provides: ${python:Provides}
 Description: Neuroimaging data analysis pipelines in Python
  Nipype interfaces Python to other neuroimaging packages and creates
