@@ -1,0 +1,12 @@
+ Pipelining with Nipype
+ ----------------------
+
+ nipype.pipeline requires networkx >= 1.0.  Unfortunately ATM Debian
+ cannot provide up-to-date version of networkx:
+  see http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=565319
+ for more information.
+
+ Install recent networkx releases either following upstream
+ recommendations or using packages from http://neuro.debian.net.
+
+ -- Yaroslav Halchenko <debian@onerussian.com>, Fri,  5 Feb 2010 22:28:12 -0500

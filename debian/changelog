@@ -1,3 +1,12 @@
+nipype (0.2-2) unstable; urgency=low
+
+  * Policy compliance boost to 3.8.4 -- no changes were necessary.
+  * networkx moved into Recommends: due to outdated version of networkx
+    in Debian (see #565319), networkx becomes optional dependency -- 
+    corresponding commits cherry-picked from upstream trunk.
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Fri, 05 Feb 2010 22:22:47 -0500
+
 nipype (0.2-1) experimental; urgency=low
 
   * Initial release (Closes: #550080)
