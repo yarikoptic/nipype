@@ -1,3 +1,10 @@
+nipype (0.2-3) unstable; urgency=low
+
+  * Moving python-networkx from Build-Depends into Build-Conflicts (versioned
+    before 1.0~rc1) (Closes: #569401).
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Thu, 11 Feb 2010 17:12:16 -0500
+
 nipype (0.2-2) unstable; urgency=low
 
   * Policy compliance boost to 3.8.4 -- no changes were necessary.
