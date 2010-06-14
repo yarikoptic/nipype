@@ -1,3 +1,9 @@
+nipype (0.3~rc0-1) unstable; urgency=low
+
+  * Trying tentative rc
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Sun, 13 Jun 2010 22:46:32 -0400
+
 nipype (0.2-4) unstable; urgency=low
 
   * BF: removed slipped in hardcoded 2.5 as version of Python (Closes:
