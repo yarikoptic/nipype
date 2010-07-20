@@ -1,6 +1,11 @@
-nipype (0.3~rc0-1) unstable; urgency=low
+nipype (0.3~rc1-1) unstable; urgency=low
 
-  * Trying tentative rc
+  * Trying tentative rc1
+  * Debian packaging
+    - Moving packaging under NeuroDebian umbrella
+    - Adjusting debian/copyright for DEP5 rev 135
+    - Policy compliance boost to 3.9.0 -- BSD license provided verbatim
+    - Added AFNI available from NeuroDebian repository into Suggests
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Sun, 13 Jun 2010 22:46:32 -0400
 
