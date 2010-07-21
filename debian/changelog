@@ -7,6 +7,7 @@ nipype (0.3~rc1-1) unstable; urgency=low
     - Policy compliance boost to 3.9.0 -- BSD license provided verbatim
     - Added AFNI available from NeuroDebian repository into Suggests
     - Added build and runtime depends on python-traits
+    - Added lintian overrides for empty testing .gz files
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Tue, 20 Jul 2010 18:25:24 -0400
 
