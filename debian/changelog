@@ -1,6 +1,6 @@
-nipype (0.3~rc1-1) unstable; urgency=low
+nipype (0.3-1) unstable; urgency=low
 
-  * Trying tentative rc1
+  * New upstream release
   * Debian packaging
     - Moving packaging under NeuroDebian umbrella
     - Adjusting debian/copyright for DEP5 rev 135
