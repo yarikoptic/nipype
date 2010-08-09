@@ -1,3 +1,15 @@
+nipype (0.3.2-1) unstable; urgency=low
+
+  * New upstream release (bugfixes and documentation).
+    + Issues fixed since 0.3 in FreeSurfer interface:
+      - bugs in glmfit and concatenate
+      - SegStats doctest
+    + Documentation fixes/enhancements:
+      - Developers howtos
+      - misc docstrings
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 09 Aug 2010 14:07:46 -0400
+
 nipype (0.3-1) unstable; urgency=low
 
   * New upstream release
