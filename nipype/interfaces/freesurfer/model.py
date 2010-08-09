@@ -97,10 +97,9 @@ class MRISPreproc(FSCommand):
         outputs = self.output_spec().get()
         outfile = self.inputs.out_file
         if not isdefined(outfile):
-            outputs['out_file'] = fname_presuffix(self.inputs.infile,
-                                                 newpath=os.getcwd(),
-                                                 suffix='_preproc.mgz',
-                                                 use_ext=False)
+            outputs['out_file'] = os.path.join(os.getcwd(),
+                                               'concat_%s_%s.mgz'%(self.inputs.hemi,
+                                                                   self.inputs.target))
         return outputs
     
     def _gen_filename(self, name):
@@ -109,10 +108,8 @@ class MRISPreproc(FSCommand):
         return None    
 
 class GLMFitInputSpec(FSTraitedSpec):
-    hemi = traits.Str(desc='im not sure what hemi does ',
-                      argstr='%s')
-    surf = traits.Str(desc='subject hemi',argstr='--surf %s')
-    glm_dir = traits.Str(argstr='--glmdir %s', desc='save outputs to dir')
+    glm_dir = traits.Str(argstr='--glmdir %s', desc='save outputs to dir',
+                         genfile=True)
     in_file = File(desc='input 4D file', argstr='--y %s', mandatory=True,
                   copyfile=False)
     _design_xor = ('fsgd', 'design', 'one_sample')
@@ -186,6 +183,7 @@ class GLMFitInputSpec(FSTraitedSpec):
        desc='save residual error spatial correlation matrix (eres.scm). Big!')
     surf = traits.Tuple(traits.Str, traits.Enum('lh', 'rh'),
                         traits.Enum('white','pial','smoothwm','inflated'),
+                        argstr='--surf %s %s %s',
                         desc='needed for some flags (uses white by default)')
     simulation = traits.Tuple(traits.Enum('perm','mc-full','mc-z'),
                               traits.Int(min=1), traits.Float, traits.Str,
@@ -234,13 +232,18 @@ class GLMFit(FSCommand):
     >>> glmfit = GLMFit()
     >>> glmfit.inputs.in_file = 'functional.nii'
     >>> glmfit.inputs.one_sample = True
-    >>> glmfit.cmdline
-    'mri_glmfit --y functional.nii --osgm'
+    >>> glmfit.cmdline == 'mri_glmfit --glmdir %s --y functional.nii --osgm'%os.getcwd()
+    True
     
     """
 
     _cmd = 'mri_glmfit'
     input_spec = GLMFitInputSpec
+    
+    def _gen_filename(self, name):
+        if name == 'glm_dir':
+            return os.getcwd()
+        return None    
         
 class OneSampleTTest(GLMFit):
 
@@ -372,8 +375,8 @@ class ConcatenateInputSpec(FSTraitedSpec):
     in_files = InputMultiPath(File(exists=True),
                  desc = 'Individual volumes to be concatenated',
                  argstr='--i %s...',mandatory=True)
-    concatenated_file = File('concat_output.nii.gz', desc = 'Output volume', argstr='--o %s',
-                  usedefault=True)
+    concatenated_file = File(desc = 'Output volume', argstr='--o %s',
+                             genfile=True)
     sign = traits.Enum('abs','pos','neg', argstr='--%s',
           desc = 'Take only pos or neg voxles from input, or take abs')
     stats = traits.Enum('sum','var','std','max','min', 'mean', argstr='--%s',
@@ -433,8 +436,17 @@ class Concatenate(FSCommand):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['concatenated_file'] = self.inputs.concatenated_file
+        if not isdefined(self.inputs.concatenated_file):
+            outputs['concatenated_file'] = os.path.join(os.getcwd(),
+                                                        'concat_output.nii.gz')
+        else:
+            outputs['concatenated_file'] = self.inputs.concatenated_file
         return outputs
+    
+    def _gen_filename(self, name):
+        if name == 'concatenated_file':
+            return self._list_outputs()[name]
+        return None    
 
 class SegStatsInputSpec(FSTraitedSpec):
     _xor_inputs = ('segmentation_file', 'annot', 'surf_label')
@@ -515,11 +527,12 @@ class SegStats(FSCommand):
     >>> import nipype.interfaces.freesurfer as fs
     >>> ss = fs.SegStats()
     >>> ss.inputs.annot = ('PWS04', 'lh', 'aparc')
-    >>> ss.inputs.environ['SUBJECTS_DIR'] = '/somepath/FSDATA'
+    >>> ss.inputs.in_file = 'functional.nii'
+    >>> ss.inputs.subjects_dir = '.'
     >>> ss.inputs.avgwf_txt_file = './avgwf.txt'
     >>> ss.inputs.summary_file = './summary.stats'
     >>> ss.cmdline
-    'mri_segstats --annot PWS04 lh aparc --avgwf ./avgwf.txt --sum ./summary.stats'
+    'mri_segstats --annot PWS04 lh aparc --avgwf ./avgwf.txt --i functional.nii --sum ./summary.stats'
     
     """
 

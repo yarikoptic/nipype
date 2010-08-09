@@ -29,6 +29,8 @@ import numpy as np
 
 from nipype.utils.misc import package_check
 import shutil
+import cPickle
+import gzip
 package_check('networkx', '1.0')
 import networkx as nx
 try:
@@ -952,7 +954,7 @@ class Node(WorkflowBase):
             self._originputs = deepcopy(self._interface.inputs)
         if copyfiles:
             self._copyfiles_to_wd(cwd,execute)
-        resultsfile = os.path.join(cwd, 'result_%s.npz' % self._id)
+        resultsfile = os.path.join(cwd, 'result_%s.pklz' % self._id)
         if issubclass(self._interface.__class__, CommandLine):
             cmd = self._interface.cmdline
             logger.info('cmd: %s'%cmd)
@@ -978,18 +980,17 @@ class Node(WorkflowBase):
                 self._result = result
                 raise RuntimeError(result.runtime.stderr)
             else:
-                # to remove problem with thread unsafeness of savez
-                outdict = {'result_%s' % self._id : result}
-                np.savez(resultsfile, **outdict)
+                pkl_file = gzip.open(resultsfile, 'wb')
+                cPickle.dump(result, pkl_file)
+                pkl_file.close()
+
         else:
             # Likewise, cwd could go in here
             logger.debug("Collecting precomputed outputs:")
             try:
-                aggouts = self._interface.aggregate_outputs()
-                runtime = Bunch(returncode = 0, environ = deepcopy(os.environ.data), hostname = gethostname())
-                result = InterfaceResult(interface=None,
-                                         runtime=runtime,
-                                         outputs=aggouts)
+                pkl_file = gzip.open(resultsfile, 'rb')
+                result = cPickle.load(pkl_file)
+                pkl_file.close()
             except FileNotFoundError:
                 logger.debug("Some of the outputs were not found: rerunning node.")
                 result = self._run_command(execute=True, cwd=cwd, copyfiles=False)
@@ -1100,7 +1101,10 @@ class MapNode(Node):
 
     @property
     def outputs(self):
-        return Bunch(self._interface._outputs().get())
+        if self._interface._outputs():
+            return Bunch(self._interface._outputs().get())
+        else:
+            return None
 
     def _run_interface(self, execute=True, cwd=None):
         old_cwd = os.getcwd()
@@ -1144,8 +1148,11 @@ class MapNode(Node):
             for i in range(nitems):
                 node = iterflow.get_exec_node('.'.join((workflowname,
                                                         nodenames[i])))
-                values.insert(i, node.result.outputs.get()[key])
-            if any([val != Undefined for val in values]):
+                if node.result.outputs:
+                    values.insert(i, node.result.outputs.get()[key])
+                else:
+                    values.insert(i, None)
+            if any([val != Undefined for val in values]) and self._result.outputs:
                 #logger.debug('setting key %s with values %s' %(key, str(values)))
                 setattr(self._result.outputs, key, values)
             #else:
