@@ -7,10 +7,13 @@ import copy
 from time import sleep
 from warnings import warn
 
-import networkx as nx
 import numpy as np
 
 from nipype.utils.misc import mktree
+
+from nipype.utils.misc import package_check
+package_check('networkx', '1.0')
+import networkx as nx
 
 try:
     from IPython.kernel import client
