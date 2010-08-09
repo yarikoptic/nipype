@@ -17,7 +17,7 @@ set fmri(level) 1
 # 2 :             Stats
 # 6 :             Stats + Post-stats
 # 4 :                     Post-stats
-set fmri(analysis) 2
+set fmri(analysis) 6
 
 # Use relative filenames
 set fmri(relative_yn) 0
@@ -32,7 +32,7 @@ set fmri(featwatcher_yn) 0
 set fmri(sscleanup_yn) 0
 
 # Output directory
-set fmri(outputdir) "scan$scan_num"
+set fmri(outputdir) "run$run_num"
 
 # TR(s)
 set fmri(tr) $interscan_interval
@@ -153,22 +153,22 @@ set fmri(mixed_yn) 2
 
 # Number of EVs
 set fmri(evs_orig) $num_evs
-set fmri(evs_real) $num_evs
+set fmri(evs_real) $num_evs_real
 set fmri(evs_vox) 0
 
 # Number of contrasts
-set fmri(ncon_orig) 1
-set fmri(ncon_real) 1
+set fmri(ncon_orig) $num_tcon
+set fmri(ncon_real) $num_tcon
 
 # Number of F-tests
-set fmri(nftests_orig) 0
-set fmri(nftests_real) 0
+set fmri(nftests_orig) $num_fcon
+set fmri(nftests_real) $num_fcon
 
 # Add constant column to design matrix? (obsolete)
 set fmri(constcol) 0
 
 # Carry out post-stats steps?
-set fmri(poststats_yn) 0
+set fmri(poststats_yn) 1
 
 # Pre-threshold masking?
 set fmri(threshmask) ""
@@ -244,7 +244,7 @@ set fmri(reghighres_dof) 6
 set fmri(regstandard_yn) 0
 
 # Standard image
-set fmri(regstandard) "standard_image"
+set fmri(regstandard) "MNI152"
 
 # Search space for registration to standard space
 # 0   : No search
@@ -253,7 +253,7 @@ set fmri(regstandard) "standard_image"
 set fmri(regstandard_search) 90
 
 # Degrees of Freedom for registration to standard space
-set fmri(regstandard_dof) 12
+set fmri(regstandard_dof) 0
 
 # Do nonlinear registration from structural to standard space?
 set fmri(regstandard_nonlinear_yn) 0

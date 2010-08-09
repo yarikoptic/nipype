@@ -35,11 +35,16 @@ IPython_ 0.10
       * zope.interface: which is also a dependecy of Twisted and was
         installed automatically for me when I installed Twisted.
 
+`simplejson <http://pypi.python.org/pypi/simplejson/2.0.9>`_
+  json is included in Python 2.6, but if you are using Python 2.5 you
+  will need to install simplejson.
+
+Enthought_ Traits_ 3.2.0 or later
+
 Note
 ~~~~
 Full distributions such as pythonxy_ or EPD_ provide the above
-packages. For EPD, the version of networkx is still at 0.99 and needs
-to be replaced by the version above.
+packages. 
 
 Strong Recommendations
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -69,6 +74,11 @@ SPM_
 
 FreeSurfer_
   FreeSurfer version 4 and higher
+  
+AFNI
+  2009_12_31_1431 or later
+Slicer
+  3.6 or later
 
 Download
 --------

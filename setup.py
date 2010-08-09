@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
+# vi: set ft=python sts=4 ts=4 sw=4 et:
 """Nipype : Neuroimaging in Python pipelines and interfaces package.
 
 Nipype intends to create python interfaces to other neuroimaging
@@ -27,6 +29,7 @@ def configuration(parent_package='',top_path=None):
     config.get_version('nipype/version.py') # sets config.version
 
     config.add_subpackage('nipype', 'nipype')
+    config.add_subpackage('nipype.testing.numpytesting')
 
     return config
 

@@ -24,6 +24,7 @@ help:
 	@echo "  linkcheck check all external links for integrity"
 	@echo "  doctest   run all doctests embedded in the documentation"
 	@echo "  sf_cburns copy html files to sourceforge (cburns only)"
+	@echo "  sf_satra copy html files to sourceforge (satra only)"
 
 clean:
 	-rm -rf _build/* *~ api/generated documentation.zip
@@ -34,11 +35,28 @@ htmlonly:
 	@echo "Build finished. The HTML pages are in _build/html."
 
 api:    
-	python ../tools/build_modref_templates.py
+	rm -rf api/generated
+	#python ../tools/build_modref_templates.py
+	rm -rf interfaces/generated
+	python ../tools/build_interface_docs.py
 	@echo "Build API docs finished."
 
-html: api htmlonly
+html: examples2rst api htmlonly
 	@echo "Build HTML and API finished."
+
+examples2rst:
+	python ../tools/ex2rst \
+			--project Nipype \
+			--outdir $(CURDIR)/examples \
+			../examples/freesurfer_tutorial.py \
+			../examples/fsl_tutorial2.py \
+			../examples/fsl_feeds_tutorial.py \
+			../examples/spm_tutorial.py \
+			../examples/spm_face_tutorial.py \
+			../examples/spm_auditory_tutorial.py \
+			../examples/dti_tutorial.py \
+			../examples/spm_tutorial2.py 
+	@echo "examples2rst finished."
 
 latex: api
 	$(SPHINXBUILD) -b latex $(ALLSPHINXOPTS) _build/latex
@@ -73,3 +91,11 @@ doctest:
 sf_cburns:
 	@echo "Copying html files to sourceforge..."
 	scp -r _build/html/* cburns,nipy@web.sourceforge.net:htdocs/nipype/
+
+sf_satra_nightly: html
+	@echo "Copying html files to sourceforge..."
+	scp -r _build/html/* satra,nipy@web.sourceforge.net:htdocs/nipype-nightly/
+
+sf_satra: html
+	@echo "Copying html files to sourceforge..."
+	rsync -auv _build/html/. satra,nipy@web.sourceforge.net:htdocs/nipype/.

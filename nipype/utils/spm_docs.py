@@ -1,3 +1,5 @@
+# emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
+# vi: set ft=python sts=4 ts=4 sw=4 et:
 """Grab documentation from spm."""
 
 import os
@@ -24,9 +26,8 @@ def grab_doc(task_name):
     cmd = matlab.MatlabCommandLine()
     # We need to tell Matlab where to find our spm_get_doc.m file.
     cwd = os.path.dirname(__file__)
-    cmd.inputs.cwd = cwd
     # Build matlab command
-    mcmd = "spm_get_doc('%s')" % task_name
+    mcmd = "addpath('%s');spm_get_doc('%s')" % (cwd, task_name)
     cmd.inputs.script_lines = mcmd
     # Run the command and get the documentation out of the result.
     out = cmd.run()

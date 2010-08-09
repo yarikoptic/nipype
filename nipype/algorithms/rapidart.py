@@ -1,3 +1,5 @@
+# emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
+# vi: set ft=python sts=4 ts=4 sw=4 et:
 """
 The rapidart module provides routines for artifact detection and region of
 interest analysis.
@@ -9,101 +11,100 @@ These functions include:
   * StimulusCorrelation: determines correlation between stimuli
     schedule and movement/intensity parameters
 
+   Change directory to provide relative paths for doctests
+   >>> import os
+   >>> filepath = os.path.dirname( os.path.realpath( __file__ ) )
+   >>> datadir = os.path.realpath(os.path.join(filepath, '../testing/data'))
+   >>> os.chdir(datadir)
 """
 
-from nipype.interfaces.base import Bunch, InterfaceResult, Interface
-from nipype.externals.pynifti import load
-from nipype.utils.filemanip import fname_presuffix, fnames_presuffix, filename_to_list, list_to_filename
-from nipype.utils.misc import find_indices
 import os
 from glob import glob
 from copy import deepcopy
+
 import numpy as np
 from scipy import signal
 import scipy.io as sio
+
+from nipype.interfaces.base import (Bunch, InterfaceResult, BaseInterface,
+                                    traits, InputMultiPath, OutputMultiPath,
+                                    TraitedSpec, File)
+from nipype.externals.pynifti import load, funcs
+from nipype.utils.filemanip import filename_to_list, list_to_filename
+from nipype.utils.misc import find_indices
 #import matplotlib as mpl
 #import matplotlib.pyplot as plt
 #import traceback
 
+class ArtifactDetectInputSpec(TraitedSpec):
+    realigned_files = InputMultiPath(File(exists=True), desc="Names of realigned functional data files", mandatory=True)
+    realignment_parameters = InputMultiPath(File(exists=True), mandatory=True,
+                                            desc=("Names of realignment parameters"
+                                                  "corresponding to the functional data files"))
+    parameter_source = traits.Enum("SPM", "FSL", "Siemens", desc="Are the movement parameters from SPM or FSL or from" \
+            "Siemens PACE data. Options: SPM, FSL or Siemens", mandatory=True)
+    use_differences = traits.ListBool([True, True], minlen = 2, maxlen = 2, usedefault=True,
+            desc="Use differences between successive motion (first element)" \
+            "and intensity paramter (second element) estimates in order" \
+            "to determine outliers.  (default is [True, True])")
+    use_norm = traits.Bool(True, desc = "Uses a composite of the motion parameters in order to determine" \
+            "outliers.  Requires ``norm_threshold`` to be set.  (default is" \
+            "True) ", usedefault=True)
+    norm_threshold = traits.Float(desc="Threshold to use to detect motion-related outliers when" \
+            "composite motion is being used (see ``use_norm``)", mandatory=True,
+                                  xor=['rotation_threshold','translation_threshold'])
+    rotation_threshold = traits.Float(desc="Threshold (in radians) to use to detect rotation-related outliers",
+                                      mandatory=True, xor=['norm_threshold'])
+    translation_threshold = traits.Float(desc="Threshold (in mm) to use to detect translation-related outliers",
+                                      mandatory=True, xor=['norm_threshold'])
+    zintensity_threshold = traits.Float(desc="Intensity Z-threshold use to detection images that deviate from the" \
+            "mean", mandatory=True) 
+    mask_type = traits.Enum('spm_global', 'file', 'thresh', desc="Type of mask that should be used to mask the functional data." \
+            "*spm_global* uses an spm_global like calculation to determine the" \
+            "brain mask.  *file* specifies a brain mask file (should be an image" \
+            "file consisting of 0s and 1s). *thresh* specifies a threshold to" \
+            "use.  By default all voxels are used, unless one of these mask" \
+            "types are defined.")
+    mask_file = File(exists=True, desc="Mask file to be used if mask_type is 'file'.")
+    mask_threshold = traits.Float(desc="Mask threshold to be used if mask_type is 'thresh'.")
+    intersect_mask = traits.Bool(True, desc = "Intersect the masks when computed from spm_global. (default is" \
+            "True)") 
+    
+class ArtifactDetectOutputSpec(TraitedSpec):
+    outlier_files = OutputMultiPath(File(exists=True),desc="One file for each functional run containing a list of 0-based" \
+            "indices corresponding to outlier volumes") 
+    intensity_files = OutputMultiPath(File(exists=True),desc="One file for each functional run containing the global intensity" \
+            "values determined from the brainmask") 
+    statistic_files = OutputMultiPath(File(exists=True),desc="One file for each functional run containing information about the" \
+            "different types of artifacts and if design info is provided then" \
+            "details of stimulus correlated motion and a listing or artifacts by" \
+            "event type.")
+    #mask_file = File(exists=True,
+    #                 desc='generated or provided mask file')
 
-class ArtifactDetect(Interface):
-    """Detects outliers in a functional imaging series depending on
-    the intensity and motion parameters. It also generates stimulus
-    correlated motion information and other statistics.
+class ArtifactDetect(BaseInterface):
+    """Detects outliers in a functional imaging series
+
+    Uses intensity and motion parameters to infer outliers. If `use_norm` is
+    True, it computes the movement of the center of each face a cuboid centered
+    around the head and returns the maximal movement across the centers.
+
+    
+    Examples
+    --------
+
+    >>> ad = ArtifactDetect()
+    >>> ad.inputs.realigned_files = 'functional.nii'
+    >>> ad.inputs.realignment_parameters = 'functional.par'
+    >>> ad.inputs.parameter_source = 'FSL'
+    >>> ad.inputs.norm_threshold = 1
+    >>> ad.inputs.use_differences = [True, False]
+    >>> ad.inputs.zintensity_threshold = 3
+    >>> ad.run() # doctest: +SKIP
     """
-
-    def __init__(self, *args, **inputs):
-        self._populate_inputs()
-        self.inputs.update(**inputs)
-
-    def inputs_help(self):
-        """
-        Parameters
-        ----------
-        realigned_files : filename(s)
-            Names of realigned functional data files
-        realignment_parameters : filename(s)
-            Names of realignment parameters corresponding to the
-            functional data files
-        parameter_source : string
-            Are the movement parameters from SPM or FSL or from
-            Siemens PACE data. Options: SPM, FSL or Siemens
-        use_differences : 2-element boolean list
-            Use differences between successive motion (first element)
-            and intensity paramter (second element) estimates in order
-            to determine outliers.  (default is [True, True])
-        use_norm : boolean, optional
-            Use the norm of the motion parameters in order to
-            determine outliers.  Requires ``norm_threshold`` to be set.
-            (default is True)
-        norm_threshold: float
-            Threshold to use to detect motion-related outliers when
-            normalized motion is being used (see ``use_norm``)
-        rotation_threshold : float
-            Threshold to use to detect rotation-related outliers
-        translation_threshold : float
-            Threshold to use to detect translation-related outliers
-        zintensity_threshold : float
-            Intensity Z-threshold use to detection images that
-            deviate from the mean
-        mask_type : {'spm_global', 'file', 'thresh'}
-            Type of mask that should be used to mask the functional
-            data.  *spm_global* uses an spm_global like calculation to
-            determine the brain mask.  *file* specifies a brain mask
-            file (should be an image file consisting of 0s and 1s).
-            *thresh* specifies a threshold to use.  By default all
-            voxels are used, unless one of these mask types are
-            defined.
-        mask_file : filename
-            Mask file to be used is mask_type is 'file'.
-        mask_threshold : float
-            Mask threshold to be used if mask_type is 'thresh'.
-        intersect_mask : boolean
-            Intersect the masks when computed from spm_global.
-            (default is True)
-
-        """
-        print self.inputs_help.__doc__
-        
-    def _populate_inputs(self):
-        self.inputs = Bunch(realigned_files=None,
-                            realignment_parameters=None,
-                            parameter_source=None,
-                            use_differences=[True,True],
-                            use_norm=True,
-                            norm_threshold=None,
-                            rotation_threshold=None,
-                            translation_threshold=None,
-                            zintensity_threshold=None,
-                            mask_type=None,
-                            mask_file=None,
-                            mask_threshold=None,
-                            intersect_mask=True)
-        
-    def outputs_help(self):
-        """print out the help from the outputs routine
-        """
-        print self.outputs.__doc__
+    
+    input_spec = ArtifactDetectInputSpec
+    output_spec = ArtifactDetectOutputSpec
         
     def _get_output_filenames(self,motionfile,output_dir):
         """Generate output files based on motion filenames
@@ -116,64 +117,36 @@ class ArtifactDetect(Interface):
         output_dir: string
             output directory in which the files will be generated 
         """
-        (filepath,filename) = os.path.split(motionfile)
+        if isinstance(motionfile,str):
+            infile = motionfile
+        elif isinstance(motionfile,list):
+            infile = motionfile[0]
+        else:
+            raise Exception("Unknown type of file")
+        (filepath,filename) = os.path.split(infile)
         (filename,ext) = os.path.splitext(filename)
         artifactfile  = os.path.join(output_dir,''.join(('art.',filename,'_outliers.txt')))
         intensityfile = os.path.join(output_dir,''.join(('global_intensity.',filename,'.txt')))
         statsfile     = os.path.join(output_dir,''.join(('stats.',filename,'.txt')))
         normfile     = os.path.join(output_dir,''.join(('norm.',filename,'.txt')))
         return artifactfile,intensityfile,statsfile,normfile
-
-    def outputs(self):
-        """Generate a bunch containing the output fields.
-
-        Parameters
-        ----------
-        outlier_files : filename(s)
-            One file for each functional run containing a list of
-            0-based indices corresponding to outlier volumes
-        intensity_files : filename(s)
-            One file for each functional run containing the global
-            intensity values determined from the brainmask
-        statistic_files : filename(s)
-            One file for each functional run containing
-            information about the different types of artifacts and
-            if design info is provided then details of stimulus
-            correlated motion and a listing or artifacts by event
-            type. 
-        """
-        outputs = Bunch(outlier_files=None,
-                        intensity_files=None,
-                        statistic_files=None)
-        return outputs
         
-    def aggregate_outputs(self):
-        outputs = self.outputs()
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        
+        outputs['outlier_files'] = []
+        outputs['intensity_files'] = []
+        outputs['statistic_files'] = []
         for i,f in enumerate(filename_to_list(self.inputs.realigned_files)):
-            outlierfile,intensityfile,statsfile,normfile = self._get_output_filenames(f,self.inputs.get('cwd','.'))
-            outlierfile = glob(outlierfile)
-            assert len(outlierfile)==1, 'Outlier file %s not found'%outlierfile
-            if outputs.outlier_files is None:
-                outputs.outlier_files = []
-            outputs.outlier_files.insert(i,outlierfile[0])
-            intensityfile = glob(intensityfile)
-            assert len(intensityfile)==1, 'Outlier file %s not found'%intensityfile
-            if outputs.intensity_files is None:
-                outputs.intensity_files = []
-            outputs.intensity_files.insert(i,intensityfile[0])
-            statsfile = glob(statsfile)
-            assert len(statsfile)==1, 'Outlier file %s not found'%statsfile
-            if outputs.statistic_files is None:
-                outputs.statistic_files = []
-            outputs.statistic_files.insert(i,statsfile[0])
-        if outputs.outlier_files is not None:
-            outputs.outlier_files = list_to_filename(outputs.outlier_files)
-            outputs.intensity_files = list_to_filename(outputs.intensity_files)
-            outputs.statistic_files = list_to_filename(outputs.statistic_files)
-        return outputs
+            outlierfile,intensityfile,statsfile, _ = self._get_output_filenames(f,os.getcwd())
+            outputs['outlier_files'].insert(i,outlierfile)
+            outputs['intensity_files'].insert(i,intensityfile)     
+            outputs['statistic_files'].insert(i,statsfile)
 
-    def get_input_info(self):
-        return []
+        outputs['outlier_files'] = list_to_filename(outputs['outlier_files'])
+        outputs['intensity_files'] = list_to_filename(outputs['intensity_files'])
+        outputs['statistic_files'] = list_to_filename(outputs['statistic_files'])
+        return outputs
 
     def _get_affine_matrix(self,params):
         """Returns an affine matrix given a set of parameters
@@ -245,16 +218,20 @@ class ArtifactDetect(Interface):
             newpos = np.abs(signal.detrend(newpos,axis=0,type='constant'))
             normdata = np.sqrt(np.mean(np.power(newpos,2),axis=1))
         return normdata
+
+    def _nanmean(self, a, axis=None):
+        if axis:
+            return np.nansum(a, axis)/np.sum(1-np.isnan(a),axis)
+        else:
+            return np.nansum(a)/np.sum(1-np.isnan(a))
+        
     
-    def _detect_outliers_core(self,imgfile,motionfile,cwd='.'):
+    def _detect_outliers_core(self, imgfile, motionfile, runidx, cwd=None):
         """
         Core routine for detecting outliers
-        
-        Parameters
-        ----------
-        imgfile :
-        motionfile :
         """
+        if not cwd:
+            cwd = os.getcwd()
         # read in motion parameters
         mc_in = np.loadtxt(motionfile)
         mc = deepcopy(mc_in)
@@ -281,7 +258,14 @@ class ArtifactDetect(Interface):
             ridx = find_indices(np.sum(abs(rotval)>self.inputs.rotation_threshold,1)>0)
 
         # read in functional image
-        nim = load(imgfile)
+        if isinstance(imgfile,str):
+            nim = load(imgfile)
+        elif isinstance(imgfile,list):
+            if len(imgfile) == 1:
+                nim = load(imgfile[0])
+            else:
+                images = [load(f) for f in imgfile]
+                nim = funcs.concat_images(images)
 
         # compute global intensity signal
         (x,y,z,timepoints) = nim.get_shape()
@@ -295,32 +279,32 @@ class ArtifactDetect(Interface):
                 mask = np.ones((x,y,z),dtype=bool)
                 for t0 in range(timepoints):
                     vol   = data[:,:,:,t0]
-                    mask  = mask*(vol>(np.mean(vol)/8))
+                    mask  = mask*(vol>(self._nanmean(vol)/8))
                 for t0 in range(timepoints):
                     vol   = data[:,:,:,t0]                    
-                    g[t0] = np.mean(vol[mask])
+                    g[t0] = self._nanmean(vol[mask])
                 if len(find_indices(mask))<(np.prod((x,y,z))/10):
                     intersect_mask = False
                     g = np.zeros((timepoints,1))
             if not intersect_mask:
                 for t0 in range(timepoints):
                     vol   = data[:,:,:,t0]
-                    mask  = vol>(np.mean(vol)/8)
-                    g[t0] = np.mean(vol[mask])
+                    mask  = vol>(self._nanmean(vol)/8)
+                    g[t0] = self._nanmean(vol[mask])
         elif masktype == 'file': # uses a mask image to determine intensity
             mask = load(self.inputs.mask_file).get_data()
             mask = mask>0.5
             for t0 in range(timepoints):
                 vol = data[:,:,:,t0]
-                g[t0] = np.mean(vol[mask])
+                g[t0] = self._nanmean(vol[mask])
         elif masktype == 'thresh': # uses a fixed signal threshold
             for t0 in range(timepoints):
                 vol   = data[:,:,:,t0]
                 mask  = vol>self.inputs.mask_threshold
-                g[t0] = np.mean(vol[mask])
+                g[t0] = self._nanmean(vol[mask])
         else:
             mask = np.ones((x,y,z))
-            g = np.mean(data[mask>0,:],1)
+            g = self._nanmean(data[mask>0,:],1)
 
         # compute normalized intensity values
         gz = signal.detrend(g,axis=0)       # detrend the signal
@@ -375,21 +359,31 @@ class ArtifactDetect(Interface):
         file.write( ''.join(('std: ',str(np.std(gz,axis=0)),'\n')))
         file.close()
 
-    def run(self, **inputs):
+    def _run_interface(self, runtime):
         """Execute this module.
         """
         funcfilelist = filename_to_list(self.inputs.realigned_files)
         motparamlist = filename_to_list(self.inputs.realignment_parameters)
         for i,imgf in enumerate(funcfilelist):
-            self._detect_outliers_core(imgf,motparamlist[i],
-                                       self.inputs.get('cwd','.'))
-        runtime = Bunch(returncode=0,
-                        messages=None,
-                        errmessages=None)
-        outputs=self.aggregate_outputs()
-        return InterfaceResult(deepcopy(self), runtime, outputs=outputs)
+            self._detect_outliers_core(imgf ,motparamlist[i], i, os.getcwd())
+        runtime.returncode = 0
+        return runtime
 
-class StimulusCorrelation(Interface):
+class StimCorrInputSpec(TraitedSpec):
+    realignment_parameters = InputMultiPath(File(exists=True), mandatory=True,
+        desc='Names of realignment parameters corresponding to the functional data files')
+    intensity_values = InputMultiPath(File(exists=True), mandatory=True,
+              desc='Name of file containing intensity values')
+    spm_mat_file = File(exists=True, mandatory=True,
+                        desc='SPM mat file (use pre-estimate SPM.mat file)')
+    concatenated_design = traits.Bool(mandatory=True,
+              desc='state if the design matrix contains concatenated sessions')
+
+class StimCorrOutputSpec(TraitedSpec):
+    stimcorr_files = OutputMultiPath(File(exists=True),
+                     desc='List of files containing correlation values')
+
+class StimulusCorrelation(BaseInterface):
     """Determines if stimuli are correlated with motion or intensity
     parameters.
 
@@ -398,40 +392,23 @@ class StimulusCorrelation(Interface):
     ArtifactDetect and :class:`nipype.interfaces.spm.Level1Design`
     prior to running this or provide an SPM.mat file and intensity
     parameters through some other means.
+
+    Examples
+    --------
+
+    >>> sc = StimulusCorrelation()
+    >>> sc.inputs.realignment_parameters = 'functional.par'
+    >>> sc.inputs.intensity_values = 'functional.rms'
+    >>> sc.inputs.spm_mat_file = 'SPM.mat'
+    >>> sc.inputs.concatenated_design = False
+    >>> sc.run() # doctest: +SKIP
+    
     """
 
-    def __init__(self, *args, **inputs):
-        self._populate_inputs()
-        self.inputs.update(**inputs)
-
-    def inputs_help(self):
-        """
-        Parameters
-        ----------
-        realignment_parameters : filename(s)
-            Names of realignment parameters corresponding to the
-            functional data files
-        intensity_values : filename(s)
-            Name of file containing intensity values
-        spm_mat_file : filename
-            SPM mat file (use pre-estimate SPM.mat file)
-        concatenated_design : boolean
-            state if the design matrix contains concatenated sessions
-        """
-        print self.inputs_help.__doc__
-        
-    def _populate_inputs(self):
-        self.inputs = Bunch(realignment_parameters=None,
-                            intensity_values=None,
-                            spm_mat_file=None,
-                            concatenated_design=None)
-        
-    def outputs_help(self):
-        """print out the help from the outputs routine
-        """
-        print self.outputs.__doc__
-        
-    def _get_output_filenames(self,motionfile,output_dir):
+    input_spec = StimCorrInputSpec
+    output_spec = StimCorrOutputSpec
+    
+    def _get_output_filenames(self, motionfile, output_dir):
         """Generate output files based on motion filenames
 
         Parameters
@@ -446,37 +423,13 @@ class StimulusCorrelation(Interface):
         corrfile  = os.path.join(output_dir,''.join(('qa.',filename,'_stimcorr.txt')))
         return corrfile
 
-    def outputs(self):
-        """Generate a bunch containing the output fields.
-
-        Parameters
-        ----------
-        stimcorr_files: file/string
-            List of files containing correlation values
-        """
-        outputs = Bunch(stimcorr_files=None)
-        return outputs
-        
-    def aggregate_outputs(self):
-        outputs = self.outputs()
-        for i,f in enumerate(filename_to_list(self.inputs.realignment_parameters)):
-            corrfile = self._get_output_filenames(f,self.inputs.get('cwd','.'))
-            stimcorrfile = glob(corrfile)
-            if outputs.stimcorr_files is None:
-                outputs.stimcorr_files = []
-            outputs.stimcorr_files.insert(i,stimcorrfile[0])
-        if outputs.stimcorr_files is not None:
-            outputs.stimcorr_files = list_to_filename(outputs.stimcorr_files)
-        return outputs
-
-    def get_input_info(self):
-        return []
-
-    def _stimcorr_core(self,motionfile,intensityfile,designmatrix,cwd='.'):
+    def _stimcorr_core(self,motionfile,intensityfile,designmatrix,cwd=None):
         """
         Core routine for determining stimulus correlation
         
         """
+        if not cwd:
+            cwd = os.getcwd()
         # read in motion parameters
         mc_in = np.loadtxt(motionfile)
         g_in  = np.loadtxt(intensityfile)
@@ -485,7 +438,7 @@ class StimulusCorrelation(Interface):
         mccol= mc_in.shape[1]
         concat_matrix = np.hstack((np.hstack((designmatrix,mc_in)),g_in))
         cm = np.corrcoef(concat_matrix,rowvar=0)
-        corrfile = self._get_output_filenames(motionfile,cwd)
+        corrfile = self._get_output_filenames(motionfile, cwd)
         # write output to outputfile
         file = open(corrfile,'w')
         file.write("Stats for:\n")
@@ -517,12 +470,12 @@ class StimulusCorrelation(Interface):
         outmatrix = designmatrix.take(rows.tolist(),axis=0).take(cols.tolist(),axis=1)
         return outmatrix
 
-    def run(self, **inputs):
+    def _run_interface(self, runtime):
         """Execute this module.
         """
-        motparamlist = filename_to_list(self.inputs.realignment_parameters)
-        intensityfiles = filename_to_list(self.inputs.intensity_values)
-        spmmat = sio.loadmat(list_to_filename(self.inputs.spm_mat_file))
+        motparamlist = self.inputs.realignment_parameters
+        intensityfiles = self.inputs.intensity_values
+        spmmat = sio.loadmat(self.inputs.spm_mat_file)
         nrows = []
         for i,imgf in enumerate(motparamlist):
             sessidx = i
@@ -534,9 +487,16 @@ class StimulusCorrelation(Interface):
                 nrows.append(mc_in.shape[0])
             matrix = self._get_spm_submatrix(spmmat,sessidx,rows)
             self._stimcorr_core(motparamlist[i],intensityfiles[i],
-                                matrix,self.inputs.get('cwd','.'))
-        runtime = Bunch(returncode=0,
-                        messages=None,
-                        errmessages=None)
-        outputs=self.aggregate_outputs()
-        return InterfaceResult(deepcopy(self), runtime, outputs=outputs)
+                                matrix, os.getcwd())
+        runtime.returncode=0
+        return runtime
+    
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        files = []
+        for i,f in enumerate(self.inputs.realignment_parameters):
+            files.insert(i, self._get_output_filenames(f, os.getcwd()))
+        if files:
+            outputs['stimcorr_files'] = files
+        return outputs
+
