@@ -1,3 +1,10 @@
+nipype (0.3.3~dartmouth1-1) experimental; urgency=low
+
+  * New upstream snapshot prepared for the nipype workshop at Dartmouth
+    college
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 13 Sep 2010 23:44:36 -0400
+
 nipype (0.3.2-1) unstable; urgency=low
 
   * New upstream release (bugfixes and documentation).
