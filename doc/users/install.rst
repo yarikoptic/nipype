@@ -89,7 +89,7 @@ page. <http://github.com/nipy/nipype>`_
 
 To check out the latest development version::
  
-        git clone git@github.com:nipy/nipype.git
+        git clone git://github.com/nipy/nipype.git
 
 Install
 -------
@@ -129,5 +129,15 @@ have nose_ installed, then do the following in ipython_::
 All tests should pass (unless you're missing a dependency). If any tests
 fail, please report them on our `bug tracker
 <http://github.com/nipy/nipype/issues>`_.
+
+On Debian systems, set the following environment variable before running
+tests::
+
+       export MATLABCMD=$pathtomatlabdir/bin/$platform/MATLAB
+
+where, $pathtomatlabdir is the path to your matlab installation and
+$platform is the directory referring to x86 or x64 installations
+(typically glnxa64 on 64-bit installations).
+
 
 .. include:: ../links_names.txt

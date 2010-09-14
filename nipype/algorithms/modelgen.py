@@ -21,12 +21,11 @@ from nipype.externals.pynifti import load
 from nipype.interfaces.base import BaseInterface, TraitedSpec,\
  InputMultiPath, traits, File
 from nipype.utils.misc import isdefined
-from nipype.utils.filemanip import filename_to_list
-from nipype.interfaces.spm import scans_for_fnames
+from nipype.utils.filemanip import filename_to_list, loadflat
 
 class SpecifyModelInputSpec(TraitedSpec):
-    subject_id = traits.Either(traits.Str(),traits.Int(),mandatory=True,
-        desc ="Subject identifier used as a parameter to the subject_info_func.")
+    subject_id = traits.Either(traits.Str(),traits.Int(),
+        desc ="This input is deprecated and will be removed in the future releases. Update your code.")
     subject_info = traits.List(mandatory=True,
                           desc= "List subject specific condition information")
     """    . If all
@@ -382,7 +381,7 @@ class SpecifyModel(BaseInterface):
                         sessinfo[i]['regress'][j]['name'] = 'UR%d'%(j+1)
                     sessinfo[i]['regress'][j]['val'] = info.regressors[j]
             if isdefined(functional_runs):
-                sessinfo[i]['scans'] = scans_for_fnames(filename_to_list(functional_runs[i]),keep4d=False)
+                sessinfo[i]['scans'] = functional_runs[i]#scans_for_fnames(filename_to_list(functional_runs[i]),keep4d=False)
             else:
                 raise Exception("No functional data information provided for model")
         if isdefined(realignment_parameters):
@@ -395,8 +394,9 @@ class SpecifyModel(BaseInterface):
                     sessinfo[i]['regress'][colidx]['val']  = mc[:,col].tolist()
         if isdefined(outliers):
             for i,out in enumerate(outliers):
-                numscans = len(sessinfo[i]['scans'])
-                print numscans
+                numscans = 0
+                for f in filename_to_list(sessinfo[i]['scans']):
+                    numscans += load(f).get_shape()[3]
                 for j,scanno in enumerate(out):
                     if True:
                         colidx = len(sessinfo[i]['regress'])
@@ -517,5 +517,15 @@ class SpecifyModel(BaseInterface):
 
     def _list_outputs(self):
         outputs = self._outputs().get()
+        if not hasattr(self, 'sessinfo'): #backwards compatibility
+            try:
+                data = loadflat(os.path.join(os.getcwd(),'%s_modelspec.npz'%self.inputs.subject_id))
+                if isinstance(data['session_info'], dict):
+                    self.sessinfo = [data['session_info']]
+                else:
+                    self.sessinfo = data['session_info']
+            except IOError:
+                self._generate_design()
         outputs['session_info'] = self.sessinfo
+        
         return outputs

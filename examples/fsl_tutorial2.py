@@ -126,6 +126,17 @@ motion_correct = pe.MapNode(interface=fsl.MCFLIRT(save_mats = True,
 preproc.connect(img2float, 'out_file', motion_correct, 'in_file')
 preproc.connect(extract_ref, 'roi_file', motion_correct, 'ref_file')
 
+
+"""
+Plot the estimated motion parameters
+"""
+
+plot_motion = pe.MapNode(interface=fsl.PlotMotionParams(in_source='fsl'),
+                        name='plot_motion',
+                        iterfield=['in_file'])
+plot_motion.iterables = ('plot_type', ['rotations', 'translations'])
+preproc.connect(motion_correct, 'par_file', plot_motion, 'in_file')
+
 """
 Extract the mean volume of the first functional run
 """
@@ -609,8 +620,7 @@ l1pipeline.base_dir = os.path.abspath('./fsl/workingdir')
 l1pipeline.config = dict(crashdump_dir=os.path.abspath('./fsl/crashdumps'))
 
 l1pipeline.connect([(infosource, datasource, [('subject_id', 'subject_id')]),
-                    (infosource, firstlevel, [(('subject_id', subjectinfo), 'modelfit.modelspec.subject_info'),
-                                              ('subject_id', 'modelfit.modelspec.subject_id')]),
+                    (infosource, firstlevel, [(('subject_id', subjectinfo), 'modelfit.modelspec.subject_info')]),
                     (datasource, firstlevel, [('struct','preproc.inputspec.struct'),
                                               ('func', 'preproc.inputspec.func'),
                                               ]),

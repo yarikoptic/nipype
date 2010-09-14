@@ -54,6 +54,7 @@ fsl.FSLCommand.set_default_output_type('NIFTI')
 
 # Set the way matlab should be called
 mlab.MatlabCommand.set_default_matlab_cmd("matlab -nodesktop -nosplash")
+mlab.MatlabCommand.set_default_paths('/software/spm8')
 
 
 """
@@ -133,7 +134,7 @@ preproc.connect([(realign,coregister,[('mean_image', 'source'),
                  (normalize,skullstrip,[('normalized_source','in_file')]),
                  (realign,art,[('realignment_parameters','realignment_parameters')]),
                  (normalize,art,[('normalized_files','realigned_files')]),
-                 (skullstrip,art,[('mask_file','mask_file')])
+                 (skullstrip,art,[('mask_file','mask_file')]),
                  ])
 
 
@@ -172,11 +173,37 @@ first level contrasts specified in a few steps above.
 
 contrastestimate = pe.Node(interface = spm.EstimateContrast(), name="contrastestimate")
 
+"""Use :class: `nipype.interfaces.utility.Select` to select each contrast for
+reporting.
+"""
+
+selectcontrast = pe.Node(interface=util.Select(), name="selectcontrast")
+
+"""Use :class:`nipype.interfaces.fsl.Overlay` to combine the statistical output of
+the contrast estimate and a background image into one volume.
+"""
+
+overlaystats = pe.Node(interface=fsl.Overlay(), name="overlaystats")
+overlaystats.inputs.stat_thresh = (3,10)
+overlaystats.inputs.show_negative_stats=True
+overlaystats.inputs.auto_thresh_bg=True
+
+"""Use :class:`nipype.interfaces.fsl.Slicer` to create images of the overlaid
+statistical volumes for a report of the first-level results.
+"""
+
+slicestats = pe.Node(interface=fsl.Slicer(), name="slicestats")
+slicestats.inputs.all_axial = True
+slicestats.inputs.image_width = 750
+
 l1analysis.connect([(modelspec,level1design,[('session_info','session_info')]),
                   (level1design,level1estimate,[('spm_mat_file','spm_mat_file')]),
                   (level1estimate,contrastestimate,[('spm_mat_file','spm_mat_file'),
                                                   ('beta_images','beta_images'),
                                                   ('residual_image','residual_image')]),
+                  (contrastestimate,selectcontrast,[('spmT_images','inlist')]),
+                  (selectcontrast,overlaystats,[('out','stat_image')]),
+                  (overlaystats,slicestats,[('out_file','in_file')])
                   ])
 
 """
@@ -193,7 +220,9 @@ l1pipeline.connect([(preproc, l1analysis, [('realign.realignment_parameters',
                                            ('art.outlier_files',
                                             'modelspec.outlier_files'),
                                            ('skullstrip.mask_file',
-                                            'level1design.mask_image')]),
+                                            'level1design.mask_image'),
+                                           ('normalize.normalized_source',
+                                            'overlaystats.background_image')]),
                   ])
 
 
@@ -311,6 +340,10 @@ l1designref.interscan_interval = modelspecref.time_repetition
 
 l1pipeline.inputs.analysis.contrastestimate.contrasts = contrasts
 
+
+# Iterate over each contrast and create report images.
+selectcontrast.iterables = ('index',[[i] for i in range(len(contrasts))])
+
 """
 Setup the pipeline
 ------------------
@@ -341,9 +374,8 @@ level1.connect([(infosource, datasource, [('subject_id', 'subject_id')]),
                 (datasource,l1pipeline,[('func','preproc.realign.in_files'),
                                         ('struct', 'preproc.coregister.target'),
                                         ('struct', 'preproc.normalize.source')]),
-                (infosource,l1pipeline,[('subject_id','analysis.modelspec.subject_id'),
-                                       (('subject_id', subjectinfo),
-                                        'analysis.modelspec.subject_info')]),
+                (infosource,l1pipeline,[(('subject_id', subjectinfo),
+                                          'analysis.modelspec.subject_info')]),
                 ])
 
 
@@ -369,6 +401,9 @@ the mean image would be copied to that directory.
 
 datasink = pe.Node(interface=nio.DataSink(), name="datasink")
 datasink.inputs.base_directory = os.path.abspath('spm_tutorial2/l1output')
+report = pe.Node(interface=nio.DataSink(), name='report')
+report.inputs.base_directory = os.path.abspath('spm_tutorial2/report')
+report.inputs.parameterization = False
 
 def getstripdir(subject_id):
     return os.path.join(os.path.abspath('spm_tutorial2/workingdir'),'_subject_id_%s' % subject_id)
@@ -378,8 +413,26 @@ level1.connect([(infosource, datasink,[('subject_id','container'),
                                        (('subject_id', getstripdir),'strip_dir')]),
                 (l1pipeline, datasink,[('analysis.contrastestimate.con_images','contrasts.@con'),
                                        ('analysis.contrastestimate.spmT_images','contrasts.@T')]),
+                (infosource, report,[('subject_id', 'container'),
+                                     (('subject_id', getstripdir),'strip_dir')]),
+                (l1pipeline, report,[('analysis.slicestats.out_file', '@report')]),
                 ])
 
+
+"""
+Execute the pipeline
+--------------------
+
+The code discussed above sets up all the necessary data structures
+with appropriate parameters and the connectivity between the
+processes, but does not generate any output. To actually run the
+analysis on the data the ``nipype.pipeline.engine.Pipeline.Run``
+function needs to be called.
+"""
+
+if __name__ == '__main__':
+    level1.run()
+    level1.write_graph()
 
 """
 Setup level 2 pipeline
@@ -429,17 +482,10 @@ l2pipeline.connect([(l2source,onesamplettestdes,[('outfiles','in_files')]),
                     ])
 
 """
-Execute the pipeline
---------------------
+Execute the second level pipeline
+---------------------------------
 
-The code discussed above sets up all the necessary data structures
-with appropriate parameters and the connectivity between the
-processes, but does not generate any output. To actually run the
-analysis on the data the ``nipype.pipeline.engine.Pipeline.Run``
-function needs to be called.
 """
 
 if __name__ == '__main__':
-    level1.run()
     l2pipeline.run()
-    level1.write_graph()

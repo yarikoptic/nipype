@@ -25,7 +25,8 @@ import scipy.io as sio
 # Local imports
 from nipype.interfaces.base import Bunch, traits, \
     TraitedSpec, File, Directory, OutputMultiPath, InputMultiPath
-from nipype.interfaces.spm.base import SPMCommand, SPMCommandInputSpec
+from nipype.interfaces.spm.base import (SPMCommand, SPMCommandInputSpec,
+                                        scans_for_fnames)
 from nipype.utils.misc import isdefined
 from nipype.utils.filemanip import (filename_to_list, list_to_filename,
                                     loadflat)
@@ -65,7 +66,7 @@ class Level1DesignInputSpec(SPMCommandInputSpec):
                      desc='Model interactions - yes:1, no:2 (opt)')
     global_intensity_normalization = traits.Enum('none', 'scaling', field='global',
                       desc='Global intensity normalization - scaling or none (opt)')
-    mask_image = File(exists=True, field='mask', copyfile=False,
+    mask_image = File(exists=True, field='mask', 
                       desc='Image  for  explicitly  masking the analysis (opt)')
     mask_threshold = traits.Either(traits.Enum('-Inf'), traits.Float(),
                       desc="Thresholding for the mask (opt, '-Inf')", default='-Inf', usedefault=True)
@@ -115,6 +116,8 @@ class Level1Design(SPMCommand):
         """validate spm realign options if set to None ignore
         """
         einputs = super(Level1Design, self)._parse_inputs(skip=('mask_threshold'))
+        for sessinfo in einputs[0]['sess']:
+            sessinfo['scans'] = scans_for_fnames(filename_to_list(sessinfo['scans']), keep4d=False)
         if not isdefined(self.inputs.spm_mat_dir):
             einputs[0]['dir'] = np.array([str(os.getcwd())], dtype=object)
         return einputs
@@ -199,7 +202,7 @@ class EstimateModel(SPMCommand):
         pth, _ = os.path.split(self.inputs.spm_mat_file)
         mask = os.path.join(pth, 'mask.img')
         outputs['mask_image'] = mask
-        spm = sio.loadmat(self.inputs.spm_mat_file)
+        spm = sio.loadmat(self.inputs.spm_mat_file, struct_as_record=False)
         betas = []
         for vbeta in spm['SPM'][0, 0].Vbeta[0]:
             betas.append(str(os.path.join(pth, vbeta.fname[0])))
@@ -344,7 +347,7 @@ class EstimateContrast(SPMCommand):
     def _list_outputs(self):
         outputs = self._outputs().get()
         pth, _ = os.path.split(self.inputs.spm_mat_file)
-        spm = sio.loadmat(self.inputs.spm_mat_file)
+        spm = sio.loadmat(self.inputs.spm_mat_file, struct_as_record=False)
         con_images = []
         spmT_images = []
         for con in spm['SPM'][0, 0].xCon[0]:
@@ -618,7 +621,7 @@ class MultipleRegression(SPMCommand):
     def _list_outputs(self):
         outputs = self._outputs().get()
         pth = os.getcwd()
-        spm = sio.loadmat(os.path.join(pth, 'SPM.mat'))
+        spm = sio.loadmat(os.path.join(pth, 'SPM.mat'), struct_as_record=False)
         con_images = []
         spmT_images = []
         for con in spm['SPM'][0, 0].xCon[0]:
@@ -938,6 +941,8 @@ class MultipleRegressionDesign(FactorialDesign):
         """
         if opt in ['in_files']:
             return np.array(val, dtype=object)
+        if opt in ['include_intercept']:
+            return int(val)
         if opt in ['user_covariates']:
             outlist = []
             mapping = {'name':'cname','vector':'c',
