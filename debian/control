@@ -5,7 +5,7 @@ Maintainer: NeuroDebian Team <team@neuro.debian.net>
 Uploaders: Yaroslav Halchenko <debian@onerussian.com>, Michael Hanke <michael.hanke@gmail.com>
 Build-Depends: cdbs, debhelper (>= 7), python-support (>= 0.6), python (>= 2.4), python-setuptools (>= 0.6), python-sphinx (>= 0.6), python-nose, python-simplejson, python-scipy, python-traits
 Build-Conflicts: python-networkx (<=1.0~rc1~)
-Standards-Version: 3.9.0
+Standards-Version: 3.9.1
 Homepage: http://nipy.sourceforge.net/nipype/
 XS-Vcs-Git: git://git.debian.org/git/pkg-exppsy/nipype.git
 XS-Vcs-Browser: http://git.debian.org/?p=pkg-exppsy/nipype.git
@@ -36,4 +36,4 @@ Description: Neuroimaging data analysis pipelines in Python -- documentation
  it has interfaces for SPM, FSL, AFNI, Freesurfer, but could be
  extended for other packages (such as lipsia).
  .
- This package contains Nipype documentation in various formats.
+ This package contains Nipype examples and documentation in various formats.
