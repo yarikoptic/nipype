@@ -1,8 +1,11 @@
 nipype (0.3.3-1) experimental; urgency=low
 
   * New upstream release
+  * Included post release fix pushed upstream
+    - python 2.5 compatibility: no keyword args after *args
   * Installing example code snippets within -doc package
   * Policy compliance boost to 3.9.1 -- no changes
+  * Added 2 more lintian overrides for empty files
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Thu, 16 Sep 2010 22:34:49 -0400
 
