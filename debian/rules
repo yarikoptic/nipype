@@ -37,7 +37,7 @@ DEB_INSTALL_DOCS_python-nipype-doc := doc/_build/html
 #doc/_build/latex/nipype.pdf
 
 clean::
-	rm -rf build
+	rm -rf build pypeline.log
 	$(MAKE) -C doc clean
 
 .PHONY: doc clean
