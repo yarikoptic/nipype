@@ -3,6 +3,7 @@ nipype (0.3.3-2) experimental; urgency=low
   * Adding graphviz into recommends since 'dot' is also used directly by
     nipype (Closes: #604558)
   * Removing lipsia from Suggests (no relation really)
+  * Adding debian/blends with RFC822 reference to the poster
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 22 Nov 2010 20:51:21 -0500
 

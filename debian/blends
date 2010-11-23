@@ -1,0 +1,11 @@
+Tasks: debian-med/imaging-dev
+Depends: python-nipype
+Published-Authors: SS Ghosh, C Burns, D Clark, K Gorgolewski, YO Halchenko, C Madison, R Tungaraza, KJ Millman
+Published-Title: Nipype: Opensource platform for unified and replicable interaction  with existing neuroimaging tools
+Published-URL: https://github.com/satra/ohbm2010/raw/master/NIPYPE/POSTER/poster_nipype.pdf
+Published-In: 16th Annual Meeting of the Organization for Human Brain Mapping
+Published-Year: 2010
+
+Tasks: debian-med/imaging
+Why: Although listed in -dev task, it also has a strong focus on interactive
+ data analysis.
