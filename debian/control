@@ -21,7 +21,8 @@ Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends},
 		 python-nibabel,
 		 python-networkx
 Recommends: ipython, python-nose, graphviz
-Suggests: fsl, afni, python-nipy, python-pyxnat
+Suggests: fsl, afni, python-nipy, slicer, matlab-spm8,
+		  python-pyxnat
 Provides: ${python:Provides}
 Description: Neuroimaging data analysis pipelines in Python
  Nipype interfaces Python to other neuroimaging packages and creates
