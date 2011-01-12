@@ -1,9 +1,12 @@
 nipype for Debian
 -----------------
 
-Due to rapid development of Nipype and ease to maintain, packaging is based on
-git-svned clone of upstream repository.  Please refer to XS-Vcs fields and
-debcheckout to obtain complete snapshot of the git repository with
-upstream (might be not fully up to date) + debian packaging.
+Due to rapid development of Nipype and ease to maintain, packaging is
+based on git-svned clone of upstream repository.  Please refer to
+XS-Vcs fields and debcheckout to obtain complete snapshot of the git
+repository with upstream (might be not fully up to date) + debian
+packaging.  Canonical location for the upstream repository is
 
- -- Yaroslav Halchenko <debian@onerussian.com>  Wed, 04 Nov 2009 23:03:07 -0500
+ https://github.com/nipy/NiPype
+
+ -- Yaroslav Halchenko <debian@onerussian.com>, Wed, 12 Jan 2011 14:42:39 -0500
