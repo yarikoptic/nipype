@@ -1,0 +1,10 @@
+Document: nipype
+Title: Nipype User Manual
+Author: Nipype developers
+Abstract: This manual describes features of Nipype, provides user
+ tutorials and developers reference.
+Section: Science/Data Analysis
+
+Format: HTML
+Index: /usr/share/doc/python-nipype-doc/html/index.html
+Files: /usr/share/doc/python-nipype-doc/html/*
