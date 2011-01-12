@@ -1,9 +1,12 @@
-nipype (0.3.3-2) experimental; urgency=low
+nipype (0.3.4-1) experimental; urgency=low
 
-  * Adding graphviz into recommends since 'dot' is also used directly by
+  * Added graphviz into recommends since 'dot' is also used directly by
     nipype (Closes: #604558)
-  * Removing lipsia from Suggests (no relation really)
-  * Adding debian/blends with RFC822 reference to the poster
+  * Removed lipsia from Suggests (no relation really)
+  * Added debian/blends with RFC822 reference to the poster
+  * Replaced pynifti with nibabel
+  * Moved networkx and nibabel into Depends since they are core components
+  * Added suggests for the upcoming package of pyxnat
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 22 Nov 2010 20:51:21 -0500
 

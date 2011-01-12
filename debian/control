@@ -14,9 +14,14 @@ XS-Vcs-Browser: http://git.debian.org/?p=pkg-exppsy/nipype.git
 Package: python-nipype
 Section: python
 Architecture: all
-Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}, python-scipy, python-simplejson, python-traits
-Recommends: python-nifti, ipython, python-nose, python-networkx, graphviz
-Suggests: fsl, afni, python-nipy
+Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends},
+		 python-scipy,
+		 python-simplejson,
+		 python-traits,
+		 python-nibabel,
+		 python-networkx
+Recommends: ipython, python-nose, graphviz
+Suggests: fsl, afni, python-nipy, python-pyxnat
 Provides: ${python:Provides}
 Description: Neuroimaging data analysis pipelines in Python
  Nipype interfaces Python to other neuroimaging packages and creates
