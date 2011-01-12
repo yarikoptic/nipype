@@ -272,17 +272,25 @@ class Coregister(SPMCommand):
     def _format_arg(self, opt, spec, val):
         """Convert input to appropriate format for spm
         """
-        if opt == 'target' or opt == 'source':
+        if opt == 'target' or (opt == 'source' and self.inputs.jobtype != "write"):
             return scans_for_fnames(filename_to_list(val),
                                     keep4d=True)
         if opt == 'apply_to_files':
             return scans_for_fnames(filename_to_list(val))
+        if opt == 'source' and self.inputs.jobtype == "write":
+            if isdefined(self.inputs.apply_to_files):
+                return scans_for_fnames(val+self.inputs.apply_to_files)
+            else:
+                return scans_for_fnames(val)
         return val
 
     def _parse_inputs(self):
         """validate spm coregister options if set to None ignore
         """
-        einputs = super(Coregister, self)._parse_inputs(skip=('jobtype'))
+        if  self.inputs.jobtype == "write":
+            einputs = super(Coregister, self)._parse_inputs(skip=('jobtype', 'apply_to_files'))
+        else:
+            einputs = super(Coregister, self)._parse_inputs(skip=('jobtype'))
         jobtype = self.inputs.jobtype
         return [{'%s' % (jobtype):einputs[0]}]
 

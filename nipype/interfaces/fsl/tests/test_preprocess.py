@@ -350,33 +350,43 @@ def test_fnirt():
     fnirt = fsl.FNIRT()
     yield assert_equal, fnirt.cmd, 'fnirt'
 
-    # Test tuple parameters
-    params = [('subsampling_scheme', '--subsamp', (4,2,2,1),'4,2,2,1'),
-              ('max_nonlin_iter', '--miter', (4,4,4,2),'4,4,4,2'),
-              ('ref_fwhm', '--reffwhm', (4,2,2,0),'4,2,2,0'),
-              ('in_fwhm', '--infwhm', (4,2,2,0),'4,2,2,0'),
-              ('regularization_lambda', '--lambda', 0.5, '0.500000')]
+    # Test list parameters
+    params = [('subsampling_scheme', '--subsamp', [4,2,2,1],'4,2,2,1'),
+              ('max_nonlin_iter', '--miter', [4,4,4,2],'4,4,4,2'),
+              ('ref_fwhm', '--reffwhm', [4,2,2,0],'4,2,2,0'),
+              ('in_fwhm', '--infwhm', [4,2,2,0],'4,2,2,0'),
+              ('apply_refmask', '--applyrefmask', [0,0,1,1],'0,0,1,1'),
+              ('apply_inmask', '--applyinmask', [0,0,0,1],'0,0,0,1'),
+              ('regularization_lambda', '--lambda', [0.5,0.75],'0.5,0.75')]
     for item, flag, val, strval in params:
         fnirt = fsl.FNIRT(in_file = infile,
                           ref_file = reffile,
                           **{item : val})
-        cout = fnirt._gen_fname(infile, suffix='_fieldwarp')
+        log = fnirt._gen_fname(infile, suffix='_log.txt', change_ext=False)
         iout = fnirt._gen_fname(infile, suffix='_warped')
         if item in ('max_nonlin_iter'):
-            cmd = 'fnirt --cout=%s '\
-                  '--in=%s '\
-                  '%s=%s --ref=%s'\
-                  ' --iout=%s' % (cout, infile, 
+            cmd = 'fnirt --in=%s '\
+                  '--logout=%s'\
+                  ' %s=%s --ref=%s'\
+                  ' --iout=%s' % (infile, log, 
                                   flag, strval, reffile, iout)
         elif item in ('in_fwhm'):
-            cmd = 'fnirt --cout=%s '\
-                  '--in=%s %s=%s '\
-                  '--ref=%s --iout=%s' % (cout, infile, flag,
-                                          strval,reffile, iout)
-        else:
-            cmd = 'fnirt --cout=%s '\
+            cmd = 'fnirt --in=%s %s=%s --logout=%s '\
+                  '--ref=%s --iout=%s' % (infile, flag,
+                                          strval, log,  reffile, iout)
+        elif item.startswith('apply'):
+            cmd = 'fnirt %s=%s '\
                   '--in=%s '\
-                  '--ref=%s %s=%s --iout=%s' % (cout, infile,
+                  '--logout=%s '\
+                  '--ref=%s --iout=%s' % (flag,strval,
+                                                infile, log, 
+                                                reffile,
+                                                iout)
+
+        else:
+            cmd = 'fnirt '\
+                  '--in=%s --logout=%s '\
+                  '--ref=%s %s=%s --iout=%s' % (infile, log, 
                                                 reffile,
                                                 flag, strval,
                                                 iout)
@@ -410,24 +420,38 @@ def test_fnirt():
                           **{name : infile})
         
         if name in ('config_file', 'affine_file','field_file'):
-            cmd = 'fnirt %s%s --cout=%s '\
-                  '--in=%s '\
-                  '--ref=%s --iout=%s' % (settings,infile,
-                                          cout, infile,
+            cmd = 'fnirt %s%s --in=%s '\
+                  '--logout=%s '\
+                  '--ref=%s --iout=%s' % (settings, infile, infile, log, 
                                           reffile, iout)
         elif name in ('refmask_file'):
-            cmd = 'fnirt --cout=%s '\
-                  '--in=%s --ref=%s '\
+            cmd = 'fnirt --in=%s '\
+                  '--logout=%s --ref=%s '\
                   '%s%s '\
-                  '--iout=%s' % (cout, infile,
-                                 reffile,
+                  '--iout=%s' % (infile, log, 
+                                 reffile, 
                                  settings,infile,
                                  iout)
-            
+        elif name in ('in_intensitymap_file', 'inwarp_file', 'inmask_file', 'jacobian_file'):
+            cmd = 'fnirt --in=%s '\
+                  '%s%s '\
+                  '--logout=%s --ref=%s '\
+                  '--iout=%s' % (infile, 
+                                 settings,infile,
+                                 log, 
+                                 reffile, 
+                                 iout)
+        elif name in ('log_file'):
+            cmd = 'fnirt --in=%s '\
+                  '%s%s --ref=%s '\
+                  '--iout=%s' % (infile, 
+                                 settings,infile, 
+                                 reffile, 
+                                 iout)
         else:
-            cmd = 'fnirt --cout=%s '\
-                  '--in=%s %s%s '\
-                  '--ref=%s --iout=%s' % (cout, infile,
+            cmd = 'fnirt --in=%s '\
+                  '--logout=%s %s%s '\
+                  '--ref=%s --iout=%s' % (infile,log, 
                                           settings, infile,
                                           reffile,iout)
                                        
@@ -472,3 +496,70 @@ def test_applywarp():
     yield assert_equal, awarp.inputs.abswarp, Undefined
     
     teardown_flirt(tmpdir)
+
+@skipif(no_fsl)
+def test_fugue():
+    input_map = dict(args = dict(argstr='%s',),
+                     asym_se_time = dict(argstr='--asym=%.10f',),
+                     despike_2dfilter = dict(argstr='--despike',),
+                     despike_theshold = dict(argstr='--despikethreshold=%s',),
+                     dwell_time = dict(argstr='--dwell=%.10f',),
+                     dwell_to_asym_ratio = dict(argstr='--dwelltoasym=%.10f',),
+                     environ = dict(usedefault=True,),
+                     fmap_in_file = dict(argstr='--loadfmap=%s',),
+                     fmap_out_file = dict(argstr='--savefmap=%s',),
+                     fourier_order = dict(argstr='--fourier=%d',),
+                     icorr = dict(requires=['shift_in_file'],argstr='--icorr',),
+                     icorr_only = dict(requires=['unwarped_file'],argstr='--icorronly',),
+                     in_file = dict(argstr='--in=%s',),
+                     mask_file = dict(argstr='--mask=%s',),
+                     median_2dfilter = dict(argstr='--median',),
+                     no_extend = dict(argstr='--noextend',),
+                     no_gap_fill = dict(argstr='--nofill',),
+                     nokspace = dict(argstr='--nokspace',),
+                     output_type = dict(),
+                     pava = dict(argstr='--pava',),
+                     phase_conjugate = dict(argstr='--phaseconj',),
+                     phasemap_file = dict(argstr='--phasemap=%s',),
+                     poly_order = dict(argstr='--poly=%d',),
+                     save_unmasked_fmap = dict(requires=['fmap_out_file'],argstr='--unmaskfmap=%s',),
+                     save_unmasked_shift = dict(requires=['shift_out_file'],argstr='--unmaskshift=%s',),
+                     shift_in_file = dict(argstr='--loadshift=%s',),
+                     shift_out_file = dict(argstr='--saveshift=%s',),
+                     smooth2d = dict(argstr='--smooth2=%.2f',),
+                     smooth3d = dict(argstr='--smooth3=%.2f',),
+                     unwarp_direction = dict(argstr='--unwarpdir=%s',),
+                     unwarped_file = dict(argstr='--unwarp=%s',),
+                     )
+    instance = fsl.FUGUE()
+    for key, metadata in input_map.items():
+        for metakey, value in metadata.items():
+            yield assert_equal, getattr(instance.inputs.traits()[key], metakey), value
+
+@skipif(no_fsl)
+def test_prelude():
+    input_map = dict(args = dict(argstr='%s',),
+                     complex_phase_file = dict(mandatory=True,xor=['magnitude_file', 'phase_file'],argstr='--complex=%s',),
+                     end = dict(argstr='--end=%d',),
+                     environ = dict(usedefault=True,),
+                     label_file = dict(argstr='--labels=%s',),
+                     labelprocess2d = dict(argstr='--labelslices',),
+                     magnitude_file = dict(mandatory=True,xor=['complex_phase_file'],argstr='--abs=%s',),
+                     mask_file = dict(argstr='--mask=%s',),
+                     num_partitions = dict(argstr='--numphasesplit=%d',),
+                     output_type = dict(),
+                     phase_file = dict(mandatory=True,xor=['complex_phase_file'],argstr='--phase=%s',),
+                     process2d = dict(xor=['labelprocess2d'],argstr='--slices',),
+                     process3d = dict(xor=['labelprocess2d', 'process2d'],argstr='--force3D',),
+                     rawphase_file = dict(argstr='--rawphase=%s',),
+                     removeramps = dict(argstr='--removeramps',),
+                     savemask_file = dict(argstr='--savemask=%s',),
+                     start = dict(argstr='--start=%d',),
+                     threshold = dict(argstr='--thresh=%.10f',),
+                     unwrapped_phase_file = dict(argstr='--unwrap=%s',),
+                     )
+    instance = fsl.PRELUDE()
+    for key, metadata in input_map.items():
+        for metakey, value in metadata.items():
+            yield assert_equal, getattr(instance.inputs.traits()[key], metakey), value
+

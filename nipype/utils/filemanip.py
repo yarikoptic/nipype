@@ -32,6 +32,7 @@ except ImportError:
 import numpy as np
 
 from nipype.utils.misc import is_container
+from nipype.utils.config import config
 
 fmlogger = logging.getLogger("filemanip")
 
@@ -70,15 +71,22 @@ def split_filename(fname):
     '.nii.gz'
 
     """
+    
+    special_extensions = [".nii.gz"]
 
     pth, fname = os.path.split(fname)
-    tmp = '.none'
-    ext = []
-    while tmp:
-        fname, tmp = os.path.splitext(fname)
-        ext.append(tmp)
-    ext.reverse()
-    return pth, fname, ''.join(ext)
+    
+    ext = None
+    for special_ext in special_extensions:
+        ext_len = len(special_ext)
+        if len(fname) > ext_len and fname[-ext_len:].lower() == special_ext.lower():
+            ext = fname[-ext_len:]
+            fname = fname[:-ext_len]
+            break
+    if not ext:
+        fname, ext = os.path.splitext(fname)
+
+    return pth, fname, ext
 
 def fname_presuffix(fname, prefix='', suffix='', newpath=None, use_ext=True):
     """Manipulates path and name of input filename
@@ -171,7 +179,7 @@ def hash_timestamp(afile):
         md5hex = md5obj.hexdigest()
     return md5hex
 
-def copyfile(originalfile, newfile, copy=False):
+def copyfile(originalfile, newfile, copy=False, create_new=False):
     """Copy or symlink ``originalfile`` to ``newfile``.
 
     Parameters
@@ -189,19 +197,60 @@ def copyfile(originalfile, newfile, copy=False):
     None
     
     """
-    if os.path.lexists(newfile):
-        fmlogger.warn("File: %s already exists, overwriting with %s, copy:%d" \
-            % (newfile, originalfile, copy))
+    newhash = None
+    orighash = None
+    fmlogger.debug(newfile)
+    
+    if create_new:
+        while os.path.exists(newfile):
+            base, fname, ext = split_filename(newfile)
+            s = re.search('_c[0-9]{4,4}$',fname)
+            i = 0
+            if s:
+                i = int(s.group()[2:])+1
+                fname = fname[:-6] + "_c%04d"%i
+            else:
+                fname += "_c%04d"%i
+            newfile = base + os.sep + fname + ext
+    elif os.path.exists(newfile):
+        if config.get('execution', 'hash_method').lower() == 'timestamp':
+            newhash = hash_timestamp(newfile)
+        elif config.get('execution', 'hash_method').lower() == 'content':
+            newhash = hash_infile(newfile)
+        fmlogger.debug("File: %s already exists,%s, copy:%d" \
+                           % (newfile, newhash, copy))
+    #the following seems unnecessary
+    #if os.name is 'posix' and copy:
+    #    if os.path.lexists(newfile) and os.path.islink(newfile):
+    #        os.unlink(newfile)
+    #        newhash = None
     if os.name is 'posix' and not copy:
         if os.path.lexists(newfile):
-            os.unlink(newfile)
-        os.symlink(originalfile,newfile)
+            if config.get('execution', 'hash_method').lower() == 'timestamp':
+                orighash = hash_timestamp(originalfile)
+            elif config.get('execution', 'hash_method').lower() == 'content':
+                orighash = hash_infile(originalfile)
+            fmlogger.debug('Original hash: %s, %s'%(originalfile, orighash))
+            if newhash != orighash:
+                os.unlink(newfile)
+        if (newhash is None) or (newhash != orighash):
+            os.symlink(originalfile,newfile)
     else:
-        try:
-            shutil.copyfile(originalfile, newfile)
-        except shutil.Error, e:
-            fmlogger.warn(e.message)
-        
+        if newhash:
+            if config.get('execution', 'hash_method').lower() == 'timestamp':
+                orighash = hash_timestamp(originalfile)
+            elif config.get('execution', 'hash_method').lower() == 'content':
+                orighash = hash_infile(originalfile)
+        if (newhash is None) or (newhash != orighash):
+            try:
+                fmlogger.debug("Copying File: %s->%s" \
+                                  % (newfile, originalfile))
+                shutil.copyfile(originalfile, newfile)
+            except shutil.Error, e:
+                fmlogger.warn(e.message)
+        else:
+            fmlogger.debug("File: %s already exists, not overwritng, copy:%d" \
+                               % (newfile, copy))
     if originalfile.endswith(".img"):
         hdrofile = originalfile[:-4] + ".hdr"
         hdrnfile = newfile[:-4] + ".hdr"
@@ -210,8 +259,10 @@ def copyfile(originalfile, newfile, copy=False):
             matnfile = newfile[:-4] + ".mat"
             copyfile(matofile, matnfile, copy)
         copyfile(hdrofile, hdrnfile, copy)
+        
+    return newfile
 
-def copyfiles(filelist, dest, copy=False):
+def copyfiles(filelist, dest, copy=False, create_new=False):
     """Copy or symlink files in ``filelist`` to ``dest`` directory.
 
     Parameters
@@ -241,7 +292,7 @@ def copyfiles(filelist, dest, copy=False):
                 destfile = outfiles[i]
             else:
                 destfile = fname_presuffix(f, newpath=outfiles[0])
-            copyfile(f,destfile,copy)
+            destfile = copyfile(f,destfile,copy,create_new=create_new)
             newfiles.insert(i,destfile)
     return newfiles
 

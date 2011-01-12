@@ -7,7 +7,7 @@ from shutil import rmtree
 
 import numpy as np
 
-import nipype.externals.pynifti as nif
+import nibabel as nb
 from nipype.testing import (assert_equal, assert_not_equal,
                             assert_raises, parametric, skipif)
 import nipype.interfaces.fsl.utils as fsl
@@ -20,11 +20,11 @@ def create_files_in_directory():
     os.chdir(outdir)
     filelist = ['a.nii','b.nii']
     for f in filelist:
-        hdr = nif.Nifti1Header()
+        hdr = nb.Nifti1Header()
         shape = (3,3,3,4)
         hdr.set_data_shape(shape)
         img = np.random.random(shape)
-        nif.save(nif.Nifti1Image(img,np.eye(4),hdr),
+        nb.save(nb.Nifti1Image(img,np.eye(4),hdr),
                  os.path.join(outdir,f))
     return filelist, outdir, cwd
     
@@ -327,5 +327,31 @@ def test_plotmotionparams():
     yield assert_equal, plotter2.cmdline, \
         ('fsl_tsplot -i %s -o bar.png -t \'Realign estimated translations (mm)\' '
          '--start=1 --finish=3 -a x,y,z'%parfiles[1])
+
+    clean_directory(outdir, cwd)
+
+
+@skipif(no_fsl)
+def test_convertxfm():
+    filelist, outdir, cwd = create_files_in_directory()
+    cvt = fsl.ConvertXFM()
+
+    # make sure command gets called
+    yield assert_equal, cvt.cmd, "convert_xfm"
+
+    # test raising error with mandatory args absent
+    yield assert_raises, ValueError, cvt.run
+
+    # .inputs based parameters setting
+    cvt.inputs.in_file = filelist[0]
+    cvt.inputs.invert_xfm = True
+    cvt.inputs.out_file = "foo.mat"
+    yield assert_equal, cvt.cmdline, 'convert_xfm -omat foo.mat -inverse %s'%filelist[0]
+
+    # constructor based parameter setting
+    cvt2 = fsl.ConvertXFM(in_file=filelist[0], in_file2=filelist[1], concat_xfm=True,
+                          out_file="bar.mat")
+    yield assert_equal, cvt2.cmdline, \
+        "convert_xfm -omat bar.mat -concat %s %s"%(filelist[1], filelist[0])
 
     clean_directory(outdir, cwd)

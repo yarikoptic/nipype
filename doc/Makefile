@@ -56,7 +56,8 @@ examples2rst:
 			../examples/spm_auditory_tutorial.py \
 			../examples/fsl_dti_tutorial.py \
 			../examples/spm_tutorial2.py \
-			../examples/dartmouth_workshop_2010.py 
+			../examples/dartmouth_workshop_2010.py \
+			../examples/nipy_tutorial.py 
 	@echo "examples2rst finished."
 
 latex: api
@@ -100,3 +101,7 @@ sf_satra_nightly: html
 sf_satra: html
 	@echo "Copying html files to sourceforge..."
 	rsync -auv _build/html/. satra,nipy@web.sourceforge.net:htdocs/nipype/.
+	
+sf_filo: html
+	@echo "Copying html files to sourceforge..."
+	rsync -auv _build/html/. gorgolewski,nipy@web.sourceforge.net:htdocs/nipype/.

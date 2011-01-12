@@ -24,7 +24,7 @@ def test_split_filename():
     res = split_filename('../usr/local/foo.nii')
     yield assert_equal(res, ('../usr/local', 'foo', '.nii'))
     res = split_filename('/usr/local/foo.a.b.c.d')
-    yield assert_equal(res, ('/usr/local', 'foo', '.a.b.c.d'))
+    yield assert_equal(res, ('/usr/local', 'foo.a.b.c', '.d'))
 
 def test_fname_presuffix():
     fname = 'foo.nii'
@@ -77,6 +77,15 @@ def test_copyfile():
     yield assert_true, os.path.exists(new_hdr)
     os.unlink(new_img)
     os.unlink(new_hdr)
+    # final cleanup
+    os.unlink(orig_img)
+    os.unlink(orig_hdr)
+
+def test_copyfile_true():
+    orig_img, orig_hdr = _temp_analyze_files()
+    pth, fname = os.path.split(orig_img)
+    new_img = os.path.join(pth, 'newfile.img')
+    new_hdr = os.path.join(pth, 'newfile.hdr')
     # Test with copy=True
     copyfile(orig_img, new_img, copy=True)
     yield assert_true, os.path.exists(new_img)

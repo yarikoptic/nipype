@@ -465,6 +465,8 @@ class BaseTraitedSpec(traits.HasTraits):
                         out = (object, hash)
                     else:
                         out = hash
+                elif isinstance(object, float):
+                    out = '%.10f'%object
                 else:
                     out = object
         return out
@@ -737,6 +739,7 @@ class BaseInterface(Interface):
         """
         self.inputs.set(**inputs)
         self._check_mandatory_inputs()
+        interface = deepcopy(self)
         # initialize provenance tracking
         env = deepcopy(os.environ.data)
         runtime = Bunch(cwd=os.getcwd(),
@@ -747,7 +750,7 @@ class BaseInterface(Interface):
         t = time()
         runtime = self._run_interface(runtime)
         runtime.duration = time() - t
-        results = InterfaceResult(deepcopy(self), runtime)
+        results = InterfaceResult(interface, runtime)
         if results.runtime.returncode is None:
             raise Exception('Returncode from an interface cannot be None')
         if results.runtime.returncode == 0:
@@ -895,9 +898,6 @@ class CommandLine(BaseInterface):
         '''
         Based on a code snippet from http://orip.org/2009/08/python-checking-if-executable-exists-in.html
         '''
-        # can't search the path if a directory is specified
-        if os.path.isdir(cmd):
-            return False
     
         extensions = os.environ.get("PATHEXT", "").split(os.pathsep)
         for directory in os.environ.get("PATH", "").split(os.pathsep):

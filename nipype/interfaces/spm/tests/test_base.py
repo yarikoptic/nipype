@@ -8,7 +8,7 @@ import numpy as np
 
 from nipype.testing import (assert_equal, assert_false, assert_true, 
                             assert_raises, skipif)
-import nipype.externals.pynifti as nif
+import nibabel as nb
 import nipype.interfaces.spm.base as spm
 from nipype.interfaces.spm import no_spm
 import nipype.interfaces.matlab as mlab
@@ -27,11 +27,11 @@ def create_files_in_directory():
     os.chdir(outdir)
     filelist = ['a.nii','b.nii']
     for f in filelist:
-        hdr = nif.Nifti1Header()
+        hdr = nb.Nifti1Header()
         shape = (3,3,3,4)
         hdr.set_data_shape(shape)
         img = np.random.random(shape)
-        nif.save(nif.Nifti1Image(img,np.eye(4),hdr),
+        nb.save(nb.Nifti1Image(img,np.eye(4),hdr),
                  os.path.join(outdir,f))
     return filelist, outdir, cwd
     
@@ -61,8 +61,6 @@ def test_use_mfile():
         input_spec = spm.SPMCommandInputSpec
     dc = TestClass() # dc = derived_class
     yield assert_true, dc.inputs.mfile
-    dc.use_mfile(False)
-    yield assert_false, dc.inputs.mfile
 
 @skipif(no_spm, "SPM not found")
 def test_cmd_update():
