@@ -4,9 +4,11 @@ nipype (0.3.4-1) experimental; urgency=low
     nipype (Closes: #604558)
   * Removed lipsia from Suggests (no relation really)
   * Added debian/blends with RFC822 reference to the poster
-  * Replaced pynifti with nibabel
+  * Replaced pynifti with nibabel. Removed copyright information on pynifti
   * Moved networkx and nibabel into Depends since they are core components
-  * Added suggests for the upcoming package of pyxnat
+  * Added suggests for pyxnat and matlab-spm8
+  * Added .doc-base for the documentation integration
+  * Updated debian/README* files
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 22 Nov 2010 20:51:21 -0500
 
