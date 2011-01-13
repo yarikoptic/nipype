@@ -5,6 +5,7 @@ nipype (0.3.4-1) experimental; urgency=low
   * Removed lipsia from Suggests (no relation really)
   * Added debian/blends with RFC822 reference to the poster
   * Replaced pynifti with nibabel. Removed copyright information on pynifti
+  * Added additional build-depends (matplotlib, sympy, nibabel, nitime)
   * Moved networkx and nibabel into Depends since they are core components
   * Added suggests for pyxnat and matlab-spm8
   * Added .doc-base for the documentation integration
