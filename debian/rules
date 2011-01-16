@@ -9,6 +9,10 @@ include /usr/share/cdbs/1/class/python-distutils.mk
 
 DEB_DESTDIR = $(CURDIR)/debian/python-nipype
 
+build/python-nipype::
+	mkdir -p build
+	echo "backend : Agg" >| build/matplotlibrc
+
 #
 # Documentation
 #
@@ -16,7 +20,7 @@ doc: doc-stamp
 doc-stamp: build/python-nipype
 ifeq (,$(filter nodoc,$(DEB_BUILD_OPTIONS)))
 	: # TODO: We need to set matplotlib backend to Agg before building...
-	export PYTHONPATH=$$PWD; cd doc; $(MAKE) html
+	export PYTHONPATH=$$PWD MPLCONFIGDIR=$(CURDIR)/build; cd doc; $(MAKE) html
 	touch $@
 endif
 
@@ -24,7 +28,9 @@ build/python-nipype-doc:: doc
 
 install/python-nipype::
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	cd debian && PYTHONPATH=$(DEB_DESTDIR)/usr/lib/python$(cdbs_python_current_version)/site-packages \
+	cd debian && \
+	 PYTHONPATH=$(DEB_DESTDIR)/usr/lib/python$(cdbs_python_current_version)/site-packages \
+     MPLCONFIGDIR=$(CURDIR)/build \
 	  nosetests -v nipype -e test_spm_path
 endif
 

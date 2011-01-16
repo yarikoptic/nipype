@@ -10,6 +10,7 @@ nipype (0.3.4-1) experimental; urgency=low
   * Added suggests for pyxnat and matlab-spm8
   * Added .doc-base for the documentation integration
   * Updated debian/README* files
+  * Assure use of Agg matplotlib backend while docbuilding/testing
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 22 Nov 2010 20:51:21 -0500
 
