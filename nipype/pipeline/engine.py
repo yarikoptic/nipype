@@ -34,14 +34,14 @@ from nipype.interfaces.base import (traits, InputMultiPath, CommandLine,
                                     Undefined, TraitedSpec, DynamicTraitedSpec,
                                     Bunch, InterfaceResult, md5, Interface)
 from nipype.utils.misc import isdefined, getsource, create_function_from_source
-from nipype.utils.filemanip import (save_json, FileNotFoundError,
+from nipype.utils.filemanip import (load_json, save_json, FileNotFoundError,
                                     filename_to_list, list_to_filename,
                                     copyfiles, fnames_presuffix, loadpkl)
 
 from nipype.pipeline.utils import (generate_expanded_graph, modify_paths,
                                    export_graph, make_output_dir,
                                    clean_working_directory, format_dot)
-from nipype.utils.logger import (logger, config)
+from nipype.utils.logger import (logger, config, logdebug_dict_differences)
 
 class WorkflowBase(object):
     """ Define common attributes and functions for workflows and nodes
@@ -944,26 +944,58 @@ class Node(WorkflowBase):
             self._save_hashfile(hashfile, hashed_inputs)
         if force_execute or (not updatehash and (self.overwrite or not os.path.exists(hashfile))):
             logger.debug("Node hash: %s"%hashvalue)
-            
+
             hashfile_unfinished = os.path.join(outdir, '_0x%s_unfinished.json' % hashvalue)
             if os.path.exists(hashfile):
+                logger.debug("Removing old hash file %s" % hashfile)
                 os.remove(hashfile)
             if os.path.exists(outdir) and \
                not (os.path.exists(hashfile_unfinished) and \
                     self._interface.can_resume) and \
                not isinstance(self, MapNode):
-                logger.debug("Removing old %s and its contents"%outdir)
+
+                # collect existing previous files (yoh: in some
+                # unfortunate case could be multiple I guess -- no
+                # reason to not sustain)
+                hashfiles_old = [f for f in glob(os.path.join(outdir, os.path.sep, '*.json'))
+                                 if not '_unfinished.json' in f]
+
+                if config.getboolean('execution', 'stop_on_first_recompute') and \
+                   len(hashfiles_old):
+                    raise Exception(
+                        "As instructed -- stopping before re-computing %s"
+                        % self)
+
+                # before removing previous directory with a previous
+                # hashfile -- report what is different
+                if len(hashfiles_old) and logger.isEnabledFor('DEBUG'):
+                    # since report will happen only in DEBUG mode --
+                    # do that only if DEBUG
+                    for hashfile_old in hashfiles_old:
+                        hashed_inputs_old = None
+                        try:
+                            hashed_inputs_old = load_json(hashfile_old)
+                        except Exception, e:
+                            logger.debug("WARNING: failed to load old hashfile %s due to %s"
+                                         % (hashfile_old, e))
+                        if hashed_inputs_old is not None:
+                            logdebug_dict_difference(hashed_inputs_old,
+                                                     hashed_inputs, "Hashed inputs")
+
+                logger.debug("Removing old %s and its contents" % outdir)
                 rmtree(outdir)
                 outdir = make_output_dir(outdir)
             else:
-                logger.debug("%s found and can_resume is True or Node is a MapNode - resuming execution" % hashfile_unfinished)
+                logger.debug("%s found and can_resume is True or Node is a "
+                             "MapNode - resuming execution"
+                             % hashfile_unfinished)
             self._save_hashfile(hashfile_unfinished, hashed_inputs)
             try:
                 self._run_interface(execute=True)
             except:
                 os.remove(hashfile_unfinished)
                 raise
-                
+
             shutil.move(hashfile_unfinished, hashfile)
         else:
             logger.debug("Hashfile exists. Skipping execution\n")
