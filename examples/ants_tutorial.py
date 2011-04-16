@@ -34,90 +34,75 @@ datasource.inputs.field_template = dict(images='%s.tiff')
 datasource.inputs.template_args = info
 datasource.inputs.base_directory = data_dir
 
-
 inputnode = pe.Node(interface=util.IdentityInterface(fields=['subject_id','images']), name='inputnode')
 
-
-#${ANTSPATH}AverageImages $DIM ${TEMPLATE} 0 $IMAGESETVARIABLE
-#ConvertToJpg template.nii template0.jpg
-
-
-    #${ANTSPATH}ANTS $DIM -m  $LOCALMETRIC  -t $TRANSFORMATION  -r $REGULARIZATION -o ${NAMING}   -i $ITERATIONS
-#  LOCALMETRIC=${METRIC},$x,${METRICPARAMS}
-#  TRANSFORMATION=SyN[1]
-#  REGULARIZATION=Gauss[3,1]
-#  METRICPARAMS=1,4,-0.95]
-createTemplate = pe.MapNode(interface=ants.ANTS_Probabilistic(), name='createTemplate',
-    iterfield = 'moving_images')
-#createTemplate.inputs.image_metric = 'CC'
-createTemplate.inputs.weight = 0
-createTemplate.inputs.radius = 0.5
-
-createTemplate.inputs.transformation_model = 'SyN'
-createTemplate.inputs.transformation_gradient_step_length = 2
-#createTemplate.inputs.transformation_delta_time = 2
-#createTemplate.inputs.transformation_number_of_time_steps = 100
-
-createTemplate.inputs.regularization = 'Gauss'
-createTemplate.inputs.regularization_gradient_field_sigma = 3
-createTemplate.inputs.regularization_deformation_field_sigma = 0.5
-#createTemplate.inputs.regularization_truncation = 0
-createTemplate.inputs.iterations = [50, 50, 10]
+createTemplate = pe.Node(interface=ants.BuildTemplate(), name='createTemplate')
 createTemplate.inputs.image_dimension = 2
-createTemplate.inputs.fixed_image = data_dir + '/B1.tiff'
-createTemplate.inputs.out_file = 'erikoutputtest.tiff'
+createTemplate.inputs.similarity_metric = 'CC'
+createTemplate.inputs.transformation_model = 'GR'
+createTemplate.inputs.max_iterations = [30,50,20]
 
-   # ${ANTSPATH}WarpImageMultiTransform $DIM  $x    ${NAMING}registered.nii ${NAMING}Warp.nii ${NAMING}Affine.txt  -R ${TEMPLATE}
-
-warpToTemplate = pe.Node(interface=ants.MeasureImageSimilarity(), name='warpToTemplate')
-#Connect template to reference image
-
-  #  ${ANTSPATH}MeasureImageSimilarity $DIM 2 ${TEMPLATE} ${NAMING}registered.nii ${TEMPLATENAME}metriclog.txt
-
-imageSimilarity = pe.Node(interface=ants.MeasureImageSimilarity(), name='imageSimilarity')
-imageSimilarity.inputs.image_metric = '2' #2-Mutual Information
-
- #   ${ANTSPATH}AverageImages $DIM ${TEMPLATE} 1 ${OUTPUTNAME}*registered.nii
-
-averageTemplate = pe.Node(interface=ants.AverageImages(), name='averageX')
-averageTemplate.inputs.normalize = True
-
-averageX = pe.Node(interface=ants.AverageImages(), name='averageX')
-averageX.inputs.normalize = False
-averageY = averageX.clone('averageY')
-averageZ = averageX.clone('averageZ')
-
-multiplyX = pe.Node(interface=ants.MultiplyImages(), name='multiplyX')
-multiplyY = multiplyX.clone('multiplyY')
-multiplyZ = multiplyX.clone('multiplyZ')
-
-#   ${ANTSPATH}MultiplyImages  $DIM ${TEMPLATENAME}warpxvec.nii -0.15 ${TEMPLATENAME}warpxvec.nii
-#    ${ANTSPATH}MultiplyImages  $DIM ${TEMPLATENAME}warpyvec.nii -0.15  ${TEMPLATENAME}warpyvec.nii
-
-#   ${ANTSPATH}WarpImageMultiTransform $DIM  ${TEMPLATE}   ${TEMPLATE} ${TEMPLATENAME}warp.nii ${TEMPLATENAME}warp.nii ${TEMPLATENAME}warp.nii  ${TEMPLATENAME}warp.nii  -R ${TEMPLATE}
-#    ${ANTSPATH}MeasureMinMaxMean $DIM ${TEMPLATENAME}warpxvec.nii  ${TEMPLATENAME}warpxlog.txt  1
-#    ${ANTSPATH}MeasureMinMaxMean $DIM ${TEMPLATENAME}warpyvec.nii  ${TEMPLATENAME}warpylog.txt  1
-
-"""
-Finally, we create another higher-level workflow to connect our mapping workflow with the info and datagrabbing nodes
-declared at the beginning. Our tutorial can is now extensible to any arbitrary number of subjects by simply adding
-their names to the subject list and their data to the proper folders.
-"""
 normalize = pe.Workflow(name="normalize")
-normalize.connect([(inputnode, createTemplate,[('images','moving_images')])])
+#normalize.connect([(inputnode, createTemplate,[('images','images')])])
+# bash /usr/lib/ants/buildtemplateparallel.sh -d 2 -o template_ -g 0 -i 4 -m 30x50x20 -c 0 -r 0 -s CC -t GR {B1.tiff,B2.tiff}
 
 ants = pe.Workflow(name="ants_tutorial")
-ants.base_dir = os.path.abspath('ants_tutorial')
+ants.base_dir = os.path.abspath('ants_tutorial/workingdir')
+
 ants.connect([
                     (infosource,datasource,[('subject_id', 'subject_id')]),
-                    (datasource,normalize,[('images','inputnode.images')]),
-                    (infosource,normalize,[('subject_id','inputnode.subject_id')]),
+                    (datasource,inputnode,[('images','images')]),
+                    (infosource,inputnode,[('subject_id','subject_id')]),
                 ])
 
-ants.run()
-ants.write_graph()
+datasink = pe.Node(interface=nio.DataSink(), name="datasink")
+datasink.inputs.base_directory = os.path.abspath('ants_tutorial/l1output')
 
-"""
-This outputted .dot graph can be converted to a vector image for use in figures via the following command-line function:
-dot -Tps graph.dot > graph.eps
-"""
+def getimgdir(subject_id):
+    import os
+    return os.path.join(os.path.abspath('ants_tutorial/workingdir'),'_subject_id_%s' % subject_id)
+
+ants.connect([(infosource, datasink,[('subject_id','container'),
+                                       (('subject_id', getimgdir),'img_dir')]),
+                (inputnode, datasink,[('images','@l1output')]),
+                ])
+
+if __name__ == '__main__':
+    ants.run()
+    ants.write_graph()
+
+def get_nsubs(group_list):
+    nsubs = 0
+    for grp in group_list.keys():
+        nsubs += len(group_list[grp])
+    return nsubs
+
+def make_inlist(n, from_node):
+    inlist = list()
+    connections = list()
+    for i in range(1,n+1):
+        inlist = (from_node,str('in{num}'.format(num=i)))
+        connections.append(inlist)
+    return connections
+
+group_list = {}
+group_list['one'] = subject_list[0:3]
+group_list['two'] = subject_list[3:5]
+
+l2source = pe.Node(nio.DataGrabber(infields=['subject_id']), name="l2source")
+l2source.iterables = [('subject_id',subject_list)]
+l2source.inputs.template=os.path.abspath('ants_tutorial/l1output/%s/*.tiff')
+
+mergenode = pe.Node(util.Merge(get_nsubs(group_list)), name="mergenode")
+
+l2pipeline = pe.Workflow(name="level2")
+l2pipeline.base_dir = os.path.abspath('ants_tutorial/l2output')
+subj_connections = make_inlist(get_nsubs(group_list), 'outfiles')
+#groupcon.connect([(connectivity,merge_subject_list,subj_connections)])
+#l2pipeline.connect([(l2source,mergenode,subj_connections)])
+#l2pipeline.connect([(mergenode,createTemplate,[('out','images')])])
+l2pipeline.connect([(l2source,createTemplate,[('outfiles','images')])])
+
+if __name__ == '__main__':
+    l2pipeline.run()
+    l2pipeline.write_graph()

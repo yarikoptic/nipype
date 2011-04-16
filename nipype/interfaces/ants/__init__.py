@@ -12,3 +12,4 @@ from nipype.interfaces.ants.base import (ANTS,
     AverageImages,
     MultiplyImages)
 from nipype.interfaces.ants.evaluation import MeasureImageSimilarity
+from nipype.interfaces.ants.scripts import BuildTemplate
