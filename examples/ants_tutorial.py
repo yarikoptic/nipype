@@ -38,12 +38,12 @@ inputnode = pe.Node(interface=util.IdentityInterface(fields=['subject_id','image
 
 createTemplate = pe.Node(interface=ants.BuildTemplate(), name='createTemplate')
 createTemplate.inputs.image_dimension = 2
-createTemplate.inputs.similarity_metric = 'CC'
-createTemplate.inputs.transformation_model = 'GR'
-createTemplate.inputs.max_iterations = [30,50,20]
+#createTemplate.inputs.similarity_metric = 'CC'
+#createTemplate.inputs.transformation_model = 'GR'
+#createTemplate.inputs.max_iterations = [30,50,20]
+createTemplate.inputs.output_prefix = 'BTP'
 
 normalize = pe.Workflow(name="normalize")
-#normalize.connect([(inputnode, createTemplate,[('images','images')])])
 # bash /usr/lib/ants/buildtemplateparallel.sh -d 2 -o template_ -g 0 -i 4 -m 30x50x20 -c 0 -r 0 -s CC -t GR {B1.tiff,B2.tiff}
 
 ants = pe.Workflow(name="ants_tutorial")
@@ -62,9 +62,7 @@ def getimgdir(subject_id):
     import os
     return os.path.join(os.path.abspath('ants_tutorial/workingdir'),'_subject_id_%s' % subject_id)
 
-ants.connect([(infosource, datasink,[('subject_id','container'),
-                                       (('subject_id', getimgdir),'img_dir')]),
-                (inputnode, datasink,[('images','@l1output')]),
+ants.connect([(inputnode, datasink,[('images','@l1output')]),
                 ])
 
 if __name__ == '__main__':
@@ -81,6 +79,7 @@ def make_inlist(n, from_node):
     inlist = list()
     connections = list()
     for i in range(1,n+1):
+    #    inlist = (from_node + '[{idx}]'.format(idx=i),str('in{num}'.format(num=i)))
         inlist = (from_node,str('in{num}'.format(num=i)))
         connections.append(inlist)
     return connections
@@ -89,20 +88,40 @@ group_list = {}
 group_list['one'] = subject_list[0:3]
 group_list['two'] = subject_list[3:5]
 
-l2source = pe.Node(nio.DataGrabber(infields=['subject_id']), name="l2source")
-l2source.iterables = [('subject_id',subject_list)]
-l2source.inputs.template=os.path.abspath('ants_tutorial/l1output/%s/*.tiff')
+l2infosource = pe.Node(interface=util.IdentityInterface(fields=['subject_id']), name="l2infosource")
+l2infosource.inputs.subject_id = subject_list
+l2inputnode = pe.Node(interface=util.IdentityInterface(fields=['subject_id','CFFfiles']), name='l2inputnode')
 
-mergenode = pe.Node(util.Merge(get_nsubs(group_list)), name="mergenode")
+l2source = pe.Node(nio.DataGrabber(outfields=['CFFfiles']), name="l2source")
+#l2source.inputs.subject_id = subject_list
+#l2source.inputs.template_args = dict(CFFfiles=[['subject_id','subject_id']])
+l2source.inputs.template=os.path.abspath('ants_tutorial/l1output/*.tiff')
+l2source.inputs.base_directory = data_dir
 
 l2pipeline = pe.Workflow(name="level2")
 l2pipeline.base_dir = os.path.abspath('ants_tutorial/l2output')
-subj_connections = make_inlist(get_nsubs(group_list), 'outfiles')
+l2pipeline.connect([
+                    (l2infosource,l2source,[('subject_id', 'subject_id')]),
+                    (l2source,l2inputnode,[('CFFfiles','CFFfiles')]),
+                    (l2infosource,l2inputnode,[('subject_id','subject_id')]),
+                ])
+
+mergenode = pe.Node(util.Merge(get_nsubs(group_list)), name="mergenode")
+
+subj_connections = make_inlist(get_nsubs(group_list), 'CFFfiles')
 #groupcon.connect([(connectivity,merge_subject_list,subj_connections)])
-#l2pipeline.connect([(l2source,mergenode,subj_connections)])
+#l3pipeline = pe.Workflow(name="level3")
+#l3pipeline.base_dir = os.path.abspath('ants_tutorial/l3output')
+
+#l2pipeline.connect([(l2inputnode,mergenode,subj_connections)])
+
 #l2pipeline.connect([(mergenode,createTemplate,[('out','images')])])
-l2pipeline.connect([(l2source,createTemplate,[('outfiles','images')])])
+l2pipeline.connect([(l2source,createTemplate,[('CFFfiles','images')])])
 
 if __name__ == '__main__':
     l2pipeline.run()
-    l2pipeline.write_graph()
+    l2pipeline.write_graph(graph2use='flat')
+
+#if __name__ == '__main__':
+    #l3pipeline.run()
+    #l3pipeline.write_graph(graph2use='flat')

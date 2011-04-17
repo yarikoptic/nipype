@@ -11,7 +11,7 @@ from nipype.utils.filemanip import fname_presuffix, split_filename
 from nipype.interfaces.base import CommandLineInputSpec, CommandLine, traits, TraitedSpec, File, InputMultiPath, Directory
 from nipype.utils.misc import isdefined
 
-def ANTSScript(func):
+def ANTSScript(func, directory=''):
     """Base support for ANTS scripts
     """
     import os.path as op
@@ -20,7 +20,10 @@ def ANTSScript(func):
         antspath = os.environ['ANTSPATH']
     except KeyError:
         raise Exception('ANTSPATH not set')
-    return 'bash ' + op.join(antspath,func)
+    if not directory == '':
+        return 'cd ' + directory + '; bash ' + op.join(antspath,func)
+    else:
+        return 'bash ' + op.join(antspath,func)
 
 class BuildTemplateInputSpec(CommandLineInputSpec):
     """
@@ -114,10 +117,18 @@ class BuildTemplateOutputSpec(TraitedSpec):
 class BuildTemplate(CommandLine):
     """
     """
-
-    _cmd = ANTSScript('buildtemplateparallel.sh')
     input_spec=BuildTemplateInputSpec
     output_spec=BuildTemplateOutputSpec
+
+    def _make_cmd(self):
+        if isdefined(self.inputs.images):
+            path=split_filename(self.inputs.images[0])[0]
+            return ANTSScript('buildtemplateparallel.sh', path)
+        else:
+            return ANTSScript('buildtemplateparallel.sh')
+
+    #_cmd = ANTSScript('buildtemplateparallel.sh', '/home/erik/Dropbox/Code/forked/nipype/examples/ants_tutorial/l1output')
+    _cmd = ANTSScript('buildtemplateparallel.sh')
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
@@ -137,10 +148,53 @@ class BuildTemplate(CommandLine):
 
     def _format_arg(self, name, spec, value):
         if name == 'images':
-            return spec.argstr% self.write_groups_for_bash(value)
+            names = []
+            for img in value:
+                path, name, ext = split_filename(img)
+                names.append(name + ext)
+            return spec.argstr% self.write_groups_for_bash(names)
         return super(BuildTemplate, self)._format_arg(name, spec, value)
 
-    #def _format_arg(self, name, value):
-      #  if name == 'method':
-     #       return spec.argstr%{"old":0, "standard":1, "new":2}[value]
-       # return super(Example, self)._format_arg(name, spec, value)
+class SimpleANTSInputSpec(CommandLineInputSpec):
+    image_dimension = traits.Enum(3, 2, argstr='%d', mandatory=True, usedefault=True, position=1,
+        desc='ImageDimension: 2 or 3 (for 2 or 3 Dimensional registration)')
+
+    fixed_image = File(exists=True, argstr='%s', mandatory=True, position=2,
+        desc='Fixed image')
+
+    moving_image = File(exists=True, argstr='%s', mandatory=True, position=3,
+        desc='Moving image')
+
+    output_prefix = traits.Str('SA_', argstr='%s', position=4, usedefault=True,
+        desc='A prefix that is prepended to all output files.')
+
+    max_iterations = traits.List(traits.Int, argstr='%s', position=5,
+        desc='Number of iterations per level -- a vector e.g. : [100,100,20]',
+        minlen=3, maxlen=3, sep='x')
+
+    labels_to_deform = File(exists=True, argstr='%s', position=6,
+        desc='Optional: Labels in fixed image space to deform to moving image')
+
+    do_ants_QC = traits.Bool(argstr='%s', position=7,
+        desc='Option: DoANTSQC (boolean)')
+
+class SimpleANTSOutputSpec(TraitedSpec):
+    output = File(exists=True, desc='The output image')
+    output_dir = Directory(exists=True)
+
+class SimpleANTS(CommandLine):
+    """
+    echo " USAGE ::  "
+    echo "  sh   ants.sh  ImageDimension  fixed.ext  moving.ext  OPTIONAL-OUTPREFIX   OPTIONAL-max-iterations  OPTIONAL-Labels-In-Fixed-Image-Space-To-Deform-To-Moving-Image     Option-DoANTSQC "
+    echo " be sure to set ANTSPATH environment variable "
+    echo " Max-Iterations in form :    JxKxL where "
+    echo "  J = max iterations at coarsest resolution (here, reduce by power of 2^2) "
+    echo " K = middle resolution iterations ( here, reduce by power of 2 ) "
+    echo " L = fine resolution iterations ( here, full resolution ) -- this level takes much more time per iteration "
+    echo " an extra  Ix before JxKxL would add another level "
+    echo " Default ierations is  $MAXITERATIONS  -- you can often get away with fewer for many apps "
+    echo " Other parameters are updates of the defaults used in the A. Klein evaluation paper in Neuroimage, 2009 "
+    """
+    _cmd = ANTSScript('ants.sh')
+    input_spec=SimpleANTSInputSpec
+    output_spec=SimpleANTSOutputSpec
