@@ -45,7 +45,7 @@ class BuildTemplateInputSpec(CommandLineInputSpec):
 
     images = InputMultiPath(File, exists=True, argstr='%s', position=-1,
         desc='List of images in the current directory, eg *_t1.nii.gz. Should be at the end' \
-          'of the command.')
+          'of the command.', copyfile=True)
 
     similarity_metric = traits.Enum('CC', 'MI', 'SMI', 'PR', 'MSQ', 'PSE', 'JTB', argstr='-s %s',
                                 desc='Intensity-Based Metrics'\
@@ -117,18 +117,9 @@ class BuildTemplateOutputSpec(TraitedSpec):
 class BuildTemplate(CommandLine):
     """
     """
+    _cmd = ANTSScript('buildtemplateparallel.sh')
     input_spec=BuildTemplateInputSpec
     output_spec=BuildTemplateOutputSpec
-
-    def _make_cmd(self):
-        if isdefined(self.inputs.images):
-            path=split_filename(self.inputs.images[0])[0]
-            return ANTSScript('buildtemplateparallel.sh', path)
-        else:
-            return ANTSScript('buildtemplateparallel.sh')
-
-    #_cmd = ANTSScript('buildtemplateparallel.sh', '/home/erik/Dropbox/Code/forked/nipype/examples/ants_tutorial/l1output')
-    _cmd = ANTSScript('buildtemplateparallel.sh')
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
@@ -152,7 +143,7 @@ class BuildTemplate(CommandLine):
             for img in value:
                 path, name, ext = split_filename(img)
                 names.append(name + ext)
-            return spec.argstr% self.write_groups_for_bash(names)
+            return spec.argstr% self.write_groups_for_bash(value)
         return super(BuildTemplate, self)._format_arg(name, spec, value)
 
 class SimpleANTSInputSpec(CommandLineInputSpec):

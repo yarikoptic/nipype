@@ -90,11 +90,11 @@ group_list['two'] = subject_list[3:5]
 
 l2infosource = pe.Node(interface=util.IdentityInterface(fields=['subject_id']), name="l2infosource")
 l2infosource.inputs.subject_id = subject_list
-l2inputnode = pe.Node(interface=util.IdentityInterface(fields=['subject_id','CFFfiles']), name='l2inputnode')
+l2inputnode = pe.Node(interface=util.IdentityInterface(fields=['subject_id','images']), name='l2inputnode')
 
-l2source = pe.Node(nio.DataGrabber(outfields=['CFFfiles']), name="l2source")
+l2source = pe.Node(nio.DataGrabber(outfields=['images']), name="l2source")
 #l2source.inputs.subject_id = subject_list
-#l2source.inputs.template_args = dict(CFFfiles=[['subject_id','subject_id']])
+#l2source.inputs.template_args = dict(images=[['subject_id','subject_id']])
 l2source.inputs.template=os.path.abspath('ants_tutorial/l1output/*.tiff')
 l2source.inputs.base_directory = data_dir
 
@@ -102,13 +102,13 @@ l2pipeline = pe.Workflow(name="level2")
 l2pipeline.base_dir = os.path.abspath('ants_tutorial/l2output')
 l2pipeline.connect([
                     (l2infosource,l2source,[('subject_id', 'subject_id')]),
-                    (l2source,l2inputnode,[('CFFfiles','CFFfiles')]),
+                    (l2source,l2inputnode,[('images','images')]),
                     (l2infosource,l2inputnode,[('subject_id','subject_id')]),
                 ])
 
 mergenode = pe.Node(util.Merge(get_nsubs(group_list)), name="mergenode")
 
-subj_connections = make_inlist(get_nsubs(group_list), 'CFFfiles')
+subj_connections = make_inlist(get_nsubs(group_list), 'images')
 #groupcon.connect([(connectivity,merge_subject_list,subj_connections)])
 #l3pipeline = pe.Workflow(name="level3")
 #l3pipeline.base_dir = os.path.abspath('ants_tutorial/l3output')
@@ -116,7 +116,7 @@ subj_connections = make_inlist(get_nsubs(group_list), 'CFFfiles')
 #l2pipeline.connect([(l2inputnode,mergenode,subj_connections)])
 
 #l2pipeline.connect([(mergenode,createTemplate,[('out','images')])])
-l2pipeline.connect([(l2source,createTemplate,[('CFFfiles','images')])])
+l2pipeline.connect([(l2source,createTemplate,[('images','images')])])
 
 if __name__ == '__main__':
     l2pipeline.run()
