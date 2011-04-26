@@ -11,19 +11,16 @@ from nipype.utils.filemanip import fname_presuffix, split_filename
 from nipype.interfaces.base import CommandLineInputSpec, CommandLine, traits, TraitedSpec, File, InputMultiPath, Directory
 from nipype.utils.misc import isdefined
 
-def ANTSScript(func, directory=''):
+def ANTSScript(func):
     """Base support for ANTS scripts
     """
-    import os.path as op
-    import os
+    import os, os.path as op
     try:
         antspath = os.environ['ANTSPATH']
     except KeyError:
         raise Exception('ANTSPATH not set')
-    if not directory == '':
-        return 'cd ' + directory + '; bash ' + op.join(antspath,func)
-    else:
-        return 'bash ' + op.join(antspath,func)
+    return op.join(antspath,func)
+#    return 'bash ' + op.join(antspath,func)
 
 class BuildTemplateInputSpec(CommandLineInputSpec):
     """
@@ -131,8 +128,8 @@ class BuildTemplate(CommandLine):
         else:
             return None
     def _gen_outfilename(self):
-        _, name , _ = split_filename(self.inputs.images[0])
-        return name + "_averaged"
+        _, name, _  = split_filename(self.inputs.images[0])
+        return self.inputs.output_prefix + 'template' + '.nii.gz'
 
     def write_groups_for_bash(self, python_list):
         return "{" + ",".join(python_list) + "}"
@@ -143,7 +140,7 @@ class BuildTemplate(CommandLine):
             for img in value:
                 path, name, ext = split_filename(img)
                 names.append(name + ext)
-            return spec.argstr% self.write_groups_for_bash(value)
+            return spec.argstr% self.write_groups_for_bash(names)
         return super(BuildTemplate, self)._format_arg(name, spec, value)
 
 class SimpleANTSInputSpec(CommandLineInputSpec):
