@@ -1,0 +1,17 @@
+--- a/nipype/interfaces/tests/test_matlab.py
++++ b/nipype/interfaces/tests/test_matlab.py
+@@ -14,8 +14,12 @@
+ except:
+     matlab_cmd = 'matlab'
+ 
+-res = CommandLine(command='which', args=matlab_cmd).run()
+-matlab_path = res.runtime.stdout.strip()
++try:
++    res = CommandLine(command='which', args=matlab_cmd).run()
++    matlab_path = res.runtime.stdout.strip()
++except Exception, e:
++    # exception in above would be thrown if which finds no matlab
++    matlab_path = ''
+ 
+ no_matlab = True
+ if matlab_path != '':
