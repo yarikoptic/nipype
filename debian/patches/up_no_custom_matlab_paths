@@ -1,0 +1,30 @@
+Author: Satrajit Ghosh <satra@mit.edu> 
+
+ post 0.4 release commit
+
+--- a/examples/spm_dartel_tutorial.py
++++ b/examples/spm_dartel_tutorial.py
+@@ -40,8 +40,8 @@
+ fsl.FSLCommand.set_default_output_type('NIFTI')
+ 
+ # Set the way matlab should be called
+-mlab.MatlabCommand.set_default_matlab_cmd("matlab -nodesktop -nosplash")
+-mlab.MatlabCommand.set_default_paths('/software/spm8')
++#mlab.MatlabCommand.set_default_matlab_cmd("matlab -nodesktop -nosplash")
++#mlab.MatlabCommand.set_default_paths('/software/spm8')
+ 
+ """
+ Setting up workflows
+--- a/examples/spm_tutorial2.py
++++ b/examples/spm_tutorial2.py
+@@ -39,8 +39,8 @@
+ fsl.FSLCommand.set_default_output_type('NIFTI')
+ 
+ # Set the way matlab should be called
+-mlab.MatlabCommand.set_default_matlab_cmd("matlab -nodesktop -nosplash")
+-mlab.MatlabCommand.set_default_paths('/software/spm8')
++#mlab.MatlabCommand.set_default_matlab_cmd("matlab -nodesktop -nosplash")
++#mlab.MatlabCommand.set_default_paths('/software/spm8')
+ 
+ 
+ """

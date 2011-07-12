@@ -6,6 +6,7 @@ nipype (0.4.0-1) unstable; urgency=low
     - boosted policy to 3.9.2 (no changes)
     - versioned *depends on traits (>=4.0) and nibabel (>=1.0)
   * debian/changelog -- updated for DEP5 rev 174
+  * up_no_custom_matlab_path patch absorbed from post-release upstream commit
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 11 Jul 2011 21:28:29 -0400
 
