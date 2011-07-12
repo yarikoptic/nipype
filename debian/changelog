@@ -1,4 +1,4 @@
-nipype (0.4.0-1) unstable; urgency=low
+nipype (0.4-1) unstable; urgency=low
 
   * Fresh upstream release
   * debian/source -- now 3.0 (quilt) format
