@@ -1,5 +1,10 @@
-# Those two files are empty files, necessary for unittesting
-python-nipype binary: gz-file-not-gzip usr/share/pyshared/nipype/testing/data/cope.nii.gz
-python-nipype binary: gz-file-not-gzip usr/share/pyshared/nipype/testing/data/varcope.nii.gz
-python-nipype binary: gz-file-not-gzip usr/share/pyshared/nipype/testing/data/mean_func.nii.gz
-python-nipype binary: gz-file-not-gzip usr/share/pyshared/nipype/testing/data/zstat1.nii.gz
+# Those files are empty files, necessary for unittesting
+python-nipype binary: gz-file-not-gzip *usr/share/pyshared/nipype/testing/data/cope.nii.gz
+python-nipype binary: gz-file-not-gzip *usr/share/pyshared/nipype/testing/data/varcope.nii.gz
+python-nipype binary: gz-file-not-gzip *usr/share/pyshared/nipype/testing/data/mean_func.nii.gz
+python-nipype binary: gz-file-not-gzip *usr/share/pyshared/nipype/testing/data/zstat1.nii.gz
+python-nipype binary: gz-file-not-gzip *usr/share/pyshared/nipype/testing/data/all_FA.nii.gz
+python-nipype binary: gz-file-not-gzip *usr/share/pyshared/nipype/testing/data/cope1.nii.gz
+python-nipype binary: gz-file-not-gzip *usr/share/pyshared/nipype/testing/data/lh.cope1.nii.gz
+python-nipype binary: gz-file-not-gzip *usr/share/pyshared/nipype/testing/data/skeleton_mask.nii.gz
+
