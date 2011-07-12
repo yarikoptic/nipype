@@ -2,6 +2,8 @@ nipype (0.4.0-1) unstable; urgency=low
 
   * Fresh upstream release
   * debian/source -- now 3.0 (quilt) format
+  * debian/control:
+    - boosted policy to 3.9.2 (no changes)
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 11 Jul 2011 21:28:29 -0400
 
