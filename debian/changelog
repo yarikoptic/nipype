@@ -11,7 +11,14 @@ nipype (0.4-1) unstable; urgency=low
       documentation and run tests
   * debian/changelog -- updated for DEP5 rev 174
   * debian/watch -- was added to fetch tarballs from github
-  * up_no_custom_matlab_path patch absorbed from post-release upstream commit
+  * committed/absorbed from post-release upstream:
+    - up_no_custom_matlab_path
+    - up_some_no_fsl_skips
+    - up_donot_fail_if_no_matlab
+    - up_reset_results_when_crash
+  * introduced deb_tollerate_exceptions_while_docbuilding to avoid
+    failures to build portions of documentation dependent on absent
+    externals (e.g. FSL)
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 11 Jul 2011 21:28:29 -0400
 
