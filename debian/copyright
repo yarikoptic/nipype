@@ -1,6 +1,6 @@
-Format-Specification: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?op=file&rev=135
-Name: Nipype
-Maintainer: nipy-devel@neuroimaging.scipy.org
+Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?op=file&rev=174
+Upstream-Name: Nipype
+Upstream-Contact: nipy-devel@neuroimaging.scipy.org
 Source: https://sourceforge.net/projects/nipy/
 
 Files: *
