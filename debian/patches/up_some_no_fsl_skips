@@ -1,0 +1,26 @@
+--- a/nipype/interfaces/fsl/tests/test_dti.py
++++ b/nipype/interfaces/fsl/tests/test_dti.py
+@@ -21,6 +21,7 @@
+ 
+ # nosetests --with-doctest path_to/test_fsl.py
+ 
++@skipif(no_fsl)
+ def test_bedpostx1():
+     input_map = dict(args = dict(argstr='%s',),
+                      bpx_directory = dict(argstr='%s',),
+@@ -41,6 +42,7 @@
+         for metakey, value in metadata.items():
+             yield assert_equal, getattr(instance.inputs.traits()[key], metakey), value
+ 
++@skipif(no_fsl)
+ def test_dtifit1():
+     input_map = dict(args = dict(argstr='%s',),
+                      base_name = dict(argstr='-o %s',),
+@@ -202,6 +204,7 @@
+ 
+ 
+ # test bedpostx
++@skipif(no_fsl)
+ def test_bedpostx2():
+     filelist, outdir, cwd = create_files_in_directory()
+     bpx = fsl.BEDPOSTX()
