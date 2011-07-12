@@ -1,0 +1,12 @@
+--- a/tools/interfacedocgen.py
++++ b/tools/interfacedocgen.py
+@@ -273,7 +273,8 @@
+                 __import__(uri)
+                 finst = sys.modules[uri].__dict__[function]
+                 workflow = finst()
+-            except TypeError:
++            except Exception, e:
++                print ">>> DEBIAN doc building with missing externals >>>: ", e
+                 continue
+             
+             if isinstance(workflow, Workflow):
