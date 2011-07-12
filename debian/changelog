@@ -9,7 +9,7 @@ nipype (0.4.0-1) unstable; urgency=low
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 11 Jul 2011 21:28:29 -0400
 
-nipype (0.3.4-1) experimental; urgency=low
+nipype (0.3.4-1) neurodebian; urgency=low
 
   * Added graphviz into recommends since 'dot' is also used directly by
     nipype (Closes: #604558)
