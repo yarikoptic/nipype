@@ -2,13 +2,35 @@
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """Miscellaneous utility functions
 """
-import numpy as np
-import os
-from distutils.version import LooseVersion
-from nipype.interfaces.traits import _Undefined
+from cPickle import dumps, loads
+import inspect
 
-def isdefined(object):
-    return not isinstance(object, _Undefined)
+from distutils.version import LooseVersion
+import numpy as np
+from textwrap import dedent
+
+def getsource(function):
+    """Returns the source code of a function"""
+    src = dumps(dedent(inspect.getsource(function)))
+    return src
+
+def create_function_from_source(function_source):
+    """Return a function object from a function source
+    """
+    ns = {}
+    try:
+        exec loads(function_source) in ns
+    except Exception, msg:
+        msg = str(msg) + '\nError executing function:\n %s\n'%function_source
+        msg += '\n'.join( ["Functions in connection strings have to be standalone.",
+                           "They cannot be declared either interactively or inside",
+                           "another function or inline in the connect string. Any",
+                           "imports should be done inside the function"
+                           ])
+        raise RuntimeError(msg)
+    funcname = [name for name in ns.keys() if name != '__builtins__'][0]
+    func = ns[funcname]
+    return func
 
 def find_indices(condition):
    "Return the indices where ravel(condition) is true"
@@ -111,3 +133,13 @@ def package_check(pkg_name, version=None, app=None, checker=LooseVersion,
     if checker(have_version) < checker(version):
         raise exc_failed_check(msg)
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    lower = v.lower()
+    if lower in ("yes", "true", "t", "1"):
+        return True
+    elif lower in ("no", "false", "n", "0"):
+        return False
+    else:
+        raise ValueError("%s cannot be converted to bool"%v)

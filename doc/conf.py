@@ -34,6 +34,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.todo',
               'sphinx.ext.pngmath',
               'sphinx.ext.inheritance_diagram',
+              'sphinx.ext.graphviz',
               'numpydoc',
               'ipython_console_highlighting',
               'only_directives',
@@ -53,7 +54,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'nipype'
-copyright = u'2009-10, Neuroimaging in Python team'
+copyright = u'2009-11, Neuroimaging in Python team'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -229,3 +230,5 @@ latex_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'http://docs.python.org/': None}
+
+exclude_patterns = ['interfaces/generated/gen.rst']

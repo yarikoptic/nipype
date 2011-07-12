@@ -1,24 +1,30 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
-"""Defines functionality for pipelined execution of interfaces
-
-The `Pipeline` class provides core functionality for batch processing. 
+"""Utility routines for workflow graphs
 """
 
 from copy import deepcopy
+from glob import glob
 import logging
 import os
 import re
 
+import numpy as np
 from nipype.utils.misc import package_check
-package_check('networkx', '1.0')
+package_check('networkx', '1.3')
 import networkx as nx
 
-from nipype.interfaces.base import CommandLine, isdefined
+from nipype.interfaces.base import CommandLine, isdefined, Undefined
 from nipype.utils.filemanip import fname_presuffix, FileNotFoundError
 from nipype.utils.config import config
 
 logger = logging.getLogger('workflow')
+
+try:
+    dfs_preorder = nx.dfs_preorder
+except AttributeError:
+    dfs_preorder = nx.dfs_preorder_nodes
+    logger.debug('networkx 1.4 dev or higher detected')
 
 try:
     from os.path import relpath
@@ -54,74 +60,69 @@ except ImportError:
             return os.curdir
         return op.join(*rel_list)
 
-def walk(children, level=0, path=None, usename=True):
-    """Generate all the full paths in a tree, as a dict.
+def modify_paths(object, relative=True, basedir=None):
+    """Modify filenames in a data structure to either full paths or relative paths
     """
-    # Entry point
-    if level == 0:
-        path = {}
-    # Exit condition
-    if not children:
-        yield path.copy()
-        return
-    # Tree recursion
-    head, tail = children[0], children[1:]
-    name, func = head
-    for child in func():
-        # We can use the arg name or the tree level as a key
-        if usename:
-            path[name] = child
-        else:
-            path[level] = child
-        # Recurse into the next level
-        for child_paths in walk(tail, level+1, path, usename):
-            yield child_paths
-        
-def _create_pickleable_graph(graph, show_connectinfo=False):
-    """Create a graph that can be pickled.
+    if not basedir:
+        basedir = os.getcwd()
+    if isinstance(object, dict):
+        out = {}
+        for key, val in sorted(object.items()):
+            if isdefined(val):
+                out[key] = modify_paths(val, relative=relative,
+                                        basedir=basedir)
+    elif isinstance(object, (list,tuple)):
+        out = []
+        for val in object:
+            if isdefined(val):
+                out.append(modify_paths(val, relative=relative,
+                                        basedir=basedir))
+        if isinstance(object, tuple):
+            out = tuple(out)
+    else:
+        if isdefined(object):
+            if isinstance(object, str) and os.path.isfile(object):
+                if relative:
+                    if config.getboolean('execution','use_relative_paths'):
+                        out = relpath(object,start=basedir)
+                    else:
+                        out = object
+                else:
+                    out = os.path.abspath(os.path.join(basedir,object))
+                if not os.path.exists(out):
+                    raise FileNotFoundError('File %s not found'%out)
+            else:
+                out = object
+    return out
 
-    Ensures that edge info is pickleable.
+def get_print_name(node):
+    """Get the name of the node
+
+    For example, a node containing an instance of interfaces.fsl.BET
+    would be called nodename.BET.fsl
+    
     """
-    logger.debug('creating pickleable graph')
-    pklgraph = deepcopy(graph)
-    for edge in pklgraph.edges():
-        data = pklgraph.get_edge_data(*edge)
-        pklgraph.remove_edge(*edge)
-        if show_connectinfo:
-            pklgraph.add_edge(edge[0], edge[1], l=str(data['connect']))
-        else:
-            pklgraph.add_edge(edge[0], edge[1])
-    return pklgraph
-
+    name = node.name
+    if hasattr(node, '_interface'):
+        pkglist = node._interface.__class__.__module__.split('.')
+        interface = node._interface.__class__.__name__
+        destclass = ''
+        if len(pkglist) > 2:
+            destclass = '.%s'%pkglist[2]
+        name = '.'.join([node.name, interface]) + destclass
+    return name
+    
 def _create_dot_graph(graph, show_connectinfo=False):
     """Create a graph that can be pickled.
 
     Ensures that edge info is pickleable.
     """
-    logger.debug('creating pickleable graph')
+    logger.debug('creating dot graph')
     pklgraph = nx.DiGraph()
     for edge in graph.edges():
         data = graph.get_edge_data(*edge)
-        if hasattr(edge[0], '_interface'):
-            pkglist = edge[0]._interface.__class__.__module__.split('.')
-            if len(pkglist) > 1:
-                srcclass = pkglist[-2]
-            else:
-                srcclass = ''
-        else:
-            srcclass = ''
-        srcname = '.'.join(str(edge[0]).split('.')[1:])
-        srcname = '.'.join((srcname, srcclass))
-        if hasattr(edge[1], '_interface'):
-            pkglist = edge[1]._interface.__class__.__module__.split('.')
-            if len(pkglist) > 1:
-                destclass = pkglist[-2]
-            else:
-                destclass = ''
-        else:
-            destclass = ''
-        destname = '.'.join(str(edge[1]).split('.')[1:])
-        destname = '.'.join((destname, destclass))
+        srcname = get_print_name(edge[0])
+        destname = get_print_name(edge[1])
         if show_connectinfo:
             pklgraph.add_edge(srcname, destname, l=str(data['connect']))
         else:
@@ -146,7 +147,7 @@ def _write_detailed_dot(graph, dotfilename):
     edges = []
     replacefunk = lambda x: x.replace('_', '').replace('.', ''). \
         replace('@', '').replace('-', '')
-    for n in graph.nodes():
+    for n in nx.topological_sort(graph):
         nodename = str(n)
         inports = []
         for u, v, d in graph.in_edges_iter(nbunch=n, data=True):
@@ -165,7 +166,7 @@ def _write_detailed_dot(graph, dotfilename):
                 if inport not in inports:
                     inports.append(inport)
         inputstr = '{IN'
-        for ip in inports:
+        for ip in sorted(inports):
             inputstr += '|<in%s> %s' % (replacefunk(ip), ip)
         inputstr += '}'
         outports = []
@@ -178,24 +179,22 @@ def _write_detailed_dot(graph, dotfilename):
                 if outport not in outports:
                     outports.append(outport)
         outputstr = '{OUT'
-        for op in outports:
+        for op in sorted(outports):
             outputstr += '|<out%s> %s' % (replacefunk(op), op)
         outputstr += '}'
+        srcpackage = ''
         if hasattr(n, '_interface'):
             pkglist = n._interface.__class__.__module__.split('.')
-            if len(pkglist) > 1:
-                srcpackage = pkglist[-2]
-            else:
-                srcpackage = ""
-        else:
-            srcpackage = ''
+            interface = n._interface.__class__.__name__
+            if len(pkglist) > 2:
+                srcpackage = pkglist[2]
         srchierarchy = '.'.join(nodename.split('.')[1:-1])
         nodenamestr = '{ %s | %s | %s }'% (nodename.split('.')[-1], srcpackage, srchierarchy)
         text += ['%s [label="%s|%s|%s"];' % (nodename.replace('.', ''),
                                              inputstr, nodenamestr,
                                              outputstr)]
     # write edges
-    for edge in edges:
+    for edge in sorted(edges):
         text.append(edge)
     text.append('}')
     filep = open(dotfilename, 'wt')
@@ -203,36 +202,46 @@ def _write_detailed_dot(graph, dotfilename):
     filep.close()
     return text
 
+# Graph manipulations for iterable expansion
 def _get_valid_pathstr(pathstr):
     pathstr = pathstr.replace(os.sep, '..')
     pathstr = re.sub(r'''[][ (){}?:<>#!|"';]''', '', pathstr)
     pathstr = pathstr.replace(',', '.')
     return pathstr
 
-def find_all_paths(graph, start, end, path=[]):
-    """Find all paths between two nodes
-    
-        http://www.python.org/doc/essays/graphs.html
+def walk(children, level=0, path=None, usename=True):
+    """Generate all the full paths in a tree, as a dict.
     """
-    path = path + [start]
-    if start == end:
-        return [path]
-    if start not in graph.nodes():
-        return []
-    paths = []
-    for node in graph.successors(start):
-        if node not in path:
-            newpaths = find_all_paths(graph, node, end, path)
-            for newpath in newpaths:
-                paths.append(newpath)
-    return paths
+    # Entry point
+    if level == 0:
+        path = {}
+    # Exit condition
+    if not children:
+        yield path.copy()
+        return
+    # Tree recursion
+    head, tail = children[0], children[1:]
+    name, func = head
+    for child in func():
+        # We can use the arg name or the tree level as a key
+        if usename:
+            path[name] = child
+        else:
+            path[level] = child
+        # Recurse into the next level
+        for child_paths in walk(tail, level+1, path, usename):
+            yield child_paths
 
-def max_path_length(G, startnode, endnode):
-    """Determine the max path length between two nodes in a DAG
-    """
-    return max([len(p) for p in find_all_paths(G, startnode, endnode)])
+def get_levels(G):
+    levels = {}
+    for n in nx.topological_sort(G):
+        levels[n] = 0
+        for pred in G.predecessors_iter(n):
+            levels[n] = max(levels[n], levels[pred]+1)
+    return levels
 
-def _merge_graphs(supergraph, nodes, subgraph, nodeid, iterables):
+
+def _merge_graphs(supergraph, nodes, subgraph, nodeid, iterables, prefix):
     """Merges two graphs that share a subset of nodes.
 
     If the subgraph needs to be replicated for multiple iterables, the
@@ -264,6 +273,11 @@ def _merge_graphs(supergraph, nodes, subgraph, nodeid, iterables):
     # nodes of the supergraph.
     supernodes = supergraph.nodes()
     ids = [n._hierarchy+n._id for n in supernodes]
+    if len(np.unique(ids)) != len(ids):
+        # This should trap the problem of miswiring when multiple iterables are
+        # used at the same level. The use of the template below for naming
+        # updates to nodes is the general solution.
+        raise Exception('Execution graph does not have a unique set of node names. Please rerun the workflow')
     edgeinfo = {}
     for n in subgraph.nodes():
         nidx = ids.index(n._hierarchy+n._id)
@@ -276,6 +290,10 @@ def _merge_graphs(supergraph, nodes, subgraph, nodeid, iterables):
                                        supergraph.get_edge_data(*edge)))
     supergraph.remove_nodes_from(nodes)
     # Add copies of the subgraph depending on the number of iterables
+    count = 0
+    for i, params in enumerate(walk(iterables.items())):
+        count += 1
+    template = '.%s%%0%dd'%(prefix, np.ceil(np.log10(count)))
     for i, params in enumerate(walk(iterables.items())):
         Gc = deepcopy(subgraph)
         ids = [n._hierarchy+n._id for n in Gc.nodes()]
@@ -286,6 +304,7 @@ def _merge_graphs(supergraph, nodes, subgraph, nodeid, iterables):
             paramstr = '_'.join((paramstr, _get_valid_pathstr(key),
                                  _get_valid_pathstr(str(val)))) #.replace(os.sep, '_')))
             rootnode.set_input(key, val)
+        levels = get_levels(Gc)
         for n in Gc.nodes():
             """
             update parameterization of the node to reflect the location of
@@ -295,7 +314,7 @@ def _merge_graphs(supergraph, nodes, subgraph, nodeid, iterables):
             with iterable 'b' will be placed in a directory
             _a_aval/_b_bval/.
             """
-            path_length = max_path_length(Gc, rootnode, n)
+            path_length = levels[n]
             # enter as negative numbers so that earlier iterables with longer
             # path lengths get precedence in a sort
             paramlist = [(-path_length, paramstr)]
@@ -309,10 +328,10 @@ def _merge_graphs(supergraph, nodes, subgraph, nodeid, iterables):
             if node._hierarchy+node._id in edgeinfo.keys():
                 for info in edgeinfo[node._hierarchy+node._id]:
                     supergraph.add_edges_from([(info[0], node, info[1])])
-            node._id += str(i)
+            node._id += template%i
     return supergraph
 
-def _generate_expanded_graph(graph_in):
+def generate_expanded_graph(graph_in):
     """Generates an expanded graph based on node parameterization
     
     Parameterization is controlled using the `iterables` field of the
@@ -330,20 +349,27 @@ def _generate_expanded_graph(graph_in):
         if isinstance(node.iterables, list):
             node.iterables = dict(map(lambda(x):(x[0], lambda:x[1]),
                                       node.iterables))
+    allprefixes = list('0abcdefghijklmnopqrstuvwxyz')
+    iterable_prefix = '0'
     while moreiterables:
         nodes = nx.topological_sort(graph_in)
         nodes.reverse()
-        inodes = [node for node in nodes if len(node.iterables.keys())>0]
+        inodes = [node for node in nodes if node.iterables is not None]
         if inodes:
             node = inodes[0]
             iterables = node.iterables.copy()
-            node.iterables = {}
-            node._id += 'I'
-            subnodes = nx.dfs_preorder(graph_in, node)
+            iterable_prefix = allprefixes[allprefixes.index(iterable_prefix)+1]
+            logger.debug('node: %s iterables: %s'%(node, iterables))
+            #nx.write_dot(graph_in, '%s_pre.dot'%node)
+            node.iterables = None
+            node._id += ('.' + iterable_prefix + 'I')
+            subnodes = [s for s in dfs_preorder(graph_in, node)]
+            logger.debug(('subnodes:' , subnodes))
             subgraph = graph_in.subgraph(subnodes)
             graph_in = _merge_graphs(graph_in, subnodes,
                                      subgraph, node._hierarchy+node._id,
-                                     iterables)
+                                     iterables, iterable_prefix)
+            #nx.write_dot(graph_in, '%s_post.dot'%node)
         else:
             moreiterables = False
     for node in graph_in.nodes():
@@ -353,7 +379,7 @@ def _generate_expanded_graph(graph_in):
     return graph_in
 
 def export_graph(graph_in, base_dir=None, show = False, use_execgraph=False,
-                 show_connectinfo=False, dotfilename='graph.dot'):
+                 show_connectinfo=False, dotfilename='graph.dot', format='png'):
     """ Displays the graph layout of the pipeline
     
     This function requires that pygraphviz and matplotlib are available on
@@ -376,7 +402,7 @@ def export_graph(graph_in, base_dir=None, show = False, use_execgraph=False,
     """
     graph = deepcopy(graph_in)
     if use_execgraph:
-        graph = _generate_expanded_graph(graph)
+        graph = generate_expanded_graph(graph)
         logger.debug('using execgraph')
     else:
         logger.debug('using input graph')
@@ -390,7 +416,7 @@ def export_graph(graph_in, base_dir=None, show = False, use_execgraph=False,
                                newpath=base_dir)
     logger.info('Creating detailed dot file: %s'%outfname)
     _write_detailed_dot(graph, outfname)
-    cmd = 'dot -Tpng -O %s' % outfname
+    cmd = 'dot -T%s -O %s' % (format, outfname)
     res = CommandLine(cmd).run()
     if res.runtime.returncode:
         logger.warn('dot2png: %s', res.runtime.stderr)
@@ -401,7 +427,7 @@ def export_graph(graph_in, base_dir=None, show = False, use_execgraph=False,
                                newpath=base_dir)
     nx.write_dot(pklgraph, outfname)
     logger.info('Creating dot file: %s' % outfname)
-    cmd = 'dot -Tpng -O %s' % outfname
+    cmd = 'dot -T%s -O %s' % (format, outfname)
     res = CommandLine(cmd).run()
     if res.runtime.returncode:
         logger.warn('dot2png: %s', res.runtime.stderr)
@@ -411,17 +437,10 @@ def export_graph(graph_in, base_dir=None, show = False, use_execgraph=False,
         if show_connectinfo:
             nx.draw_networkx_edge_labels(pklgraph, pos)
 
-def _report_nodes_not_run(notrun):
-    if notrun:
-        logger.info("***********************************")
-        for info in notrun:
-            logger.error("could not run node: %s" % '.'.join((info['node']._hierarchy,info['node']._id)))
-            logger.info("crashfile: %s" % info['crashfile'])
-            logger.debug("The following dependent nodes were not run")
-            for subnode in info['dependents']:
-                logger.debug(subnode._id)
-        logger.info("***********************************")
-
+def format_dot(dotfilename, format=None):
+    cmd = 'dot -T%s -O %s' % (format, dotfilename)
+    CommandLine(cmd).run()
+    logger.info('Converting dotfile: %s to %s format'%(dotfilename, format))
 
 def make_output_dir(outdir):
     """Make the output_dir if it doesn't exist.
@@ -432,46 +451,112 @@ def make_output_dir(outdir):
     
     """
     if not os.path.exists(os.path.abspath(outdir)):
-        # XXX Should this use os.makedirs which will make any
-        # necessary parent directories?  I didn't because the one
-        # case where mkdir failed because a missing parent
-        # directory, something went wrong up-stream that caused an
-        # invalid path to be passed in for `outdir`.
         logger.debug("Creating %s" % outdir)
-        os.mkdir(outdir)
+        os.makedirs(outdir)
     return outdir
 
-def modify_paths(object, relative=True, basedir=None):
-    """Modify filenames in a data structure to either full paths or relative paths
+def get_all_files(infile):
+    files = [infile]
+    if infile.endswith(".img"):
+        files.append(infile[:-4] + ".hdr")
+        files.append(infile[:-4] + ".mat")
+    if infile.endswith(".img.gz"):
+        files.append(infile[:-7] + ".hdr.gz")
+    return files
+
+def walk_outputs(object):
+    """Extract every file and directory from a python structure
     """
-    if not basedir:
-        basedir = os.getcwd()
+    out = []
     if isinstance(object, dict):
-        out = {}
         for key, val in sorted(object.items()):
             if isdefined(val):
-                out[key] = modify_paths(val, relative=relative,
-                                        basedir=basedir)
+                out.extend(walk_outputs(val))
     elif isinstance(object, (list,tuple)):
-        out = []
         for val in object:
             if isdefined(val):
-                out.append(modify_paths(val, relative=relative,
-                                        basedir=basedir))
-        if isinstance(object, tuple):
-            out = tuple(out)
+                out.extend(walk_outputs(val))
     else:
-        if isdefined(object):
-            if isinstance(object, str) and os.path.isfile(object):
-                if relative:
-                    if config.get('execution','use_relative_paths'):
-                        out = relpath(object,start=basedir)
-                    else:
-                        out = object.copy()
-                else:
-                    out = os.path.abspath(os.path.join(basedir,object))
-                if not os.path.exists(out):
-                    raise FileNotFoundError('File %s not found'%out)
-            else:
-                out = object
+        if isdefined(object) and isinstance(object, str):
+            if os.path.islink(object) or os.path.isfile(object):
+                out = [(filename,'f') for filename in get_all_files(object)]
+            elif os.path.isdir(object):
+                out = [(object,'d')]
     return out
+
+def walk_files(cwd):
+    for path, _, files in os.walk(cwd):
+        for f in files:
+            yield os.path.join(path, f)
+
+def clean_working_directory(outputs, cwd, inputs, needed_outputs,
+                            files2keep=None, dirs2keep=None):
+    """Removes all files not needed for further analysis from the directory
+    """
+    if not needed_outputs:
+        return outputs
+    # build a list of needed files
+    output_files = []
+    outputdict = outputs.get()
+    for output in needed_outputs:
+        output_files.extend(walk_outputs(outputdict[output]))
+    needed_files = [path for path, type in output_files if type == 'f']
+    input_files = []
+    inputdict = inputs.get()
+    input_files.extend(walk_outputs(inputdict))
+    needed_files += [path for path, type in input_files if type == 'f']
+    for extra in ['_0x*.json', 'provenance.xml', 'pyscript*.m',
+                  'command.txt', 'result*.pklz', '_inputs.pklz']:
+        needed_files.extend(glob(os.path.join(cwd, extra)))
+    if files2keep:
+        needed_files.extend(filename_to_list(files2keep))
+    needed_dirs = [path for path, type in output_files if type == 'd']
+    if dirs2keep:
+        needed_dirs.extend(filename_to_list(dirs2keep))
+    for extra in ['_nipype', '_report']:
+        needed_dirs.extend(glob(os.path.join(cwd, extra)))
+    logger.debug('Needed files: %s'%(';'.join(needed_files)))
+    logger.debug('Needed dirs: %s'%(';'.join(needed_dirs)))
+    files2remove = []
+    for f in walk_files(cwd):
+        if f not in needed_files:
+            if len(needed_dirs) == 0:
+                files2remove.append(f)
+            elif not any([f.startswith(dirname) for dirname in needed_dirs]):
+                files2remove.append(f)
+    logger.debug('Removing files: %s'%(';'.join(files2remove)))
+    for f in files2remove:
+        os.remove(f)
+    for key in outputs.copyable_trait_names():
+        if key not in needed_outputs:
+            setattr(outputs, key, Undefined)
+    return outputs
+
+def merge_dict(d1, d2, merge=lambda x,y:y):
+    """
+    Merges two dictionaries, non-destructively, combining 
+    values on duplicate keys as defined by the optional merge
+    function.  The default behavior replaces the values in d1
+    with corresponding values in d2.  (There is no other generally
+    applicable merge strategy, but often you'll have homogeneous 
+    types in your dicts, so specifying a merge technique can be 
+    valuable.)
+
+    Examples:
+
+    >>> d1 = {'a': 1, 'c': 3, 'b': 2}
+    >>> merge_dict(d1, d1)
+    {'a': 1, 'c': 3, 'b': 2}
+    >>> merge_dict(d1, d1, lambda x,y: x+y)
+    {'a': 2, 'c': 6, 'b': 4}
+
+    """
+    if not isinstance(d1, dict):
+        return merge(d1, d2)
+    result = dict(d1)
+    for k,v in d2.iteritems():
+        if k in result:
+            result[k] = merge_dict(result[k], v, merge=merge)
+        else:
+            result[k] = v
+    return result

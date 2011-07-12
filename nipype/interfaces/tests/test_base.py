@@ -1,36 +1,35 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
-import nipype.interfaces.base as nii
-from nipype.testing import assert_equal, assert_not_equal, assert_raises, assert_true
 import os
 import tempfile
 import shutil
+
 from nipype.testing import (assert_equal, assert_not_equal, assert_raises,
                             assert_true, assert_false, with_setup, package_check, skipif)
 import nipype.interfaces.base as nib
 from nipype.interfaces.base import Undefined
-from nipype.interfaces.base import InterfaceResult
+
 from nipype.utils.config import config
 
 #test Bunch
 def test_bunch():
-    b = nii.Bunch()
+    b = nib.Bunch()
     yield assert_equal, b.__dict__,{}
-    b = nii.Bunch(a=1,b=[2,3])
+    b = nib.Bunch(a=1,b=[2,3])
     yield assert_equal, b.__dict__,{'a': 1, 'b': [2,3]}
 
 def test_bunch_attribute():
-    b = nii.Bunch(a=1,b=[2,3],c=None)
+    b = nib.Bunch(a=1,b=[2,3],c=None)
     yield assert_equal, b.a ,1
     yield assert_equal, b.b, [2,3]
     yield assert_equal, b.c, None
 
 def test_bunch_repr():
-    b = nii.Bunch(b=2,c=3,a=dict(n=1,m=2))
+    b = nib.Bunch(b=2,c=3,a=dict(n=1,m=2))
     yield assert_equal, repr(b), "Bunch(a={'m': 2, 'n': 1}, b=2, c=3)"
 
 def test_bunch_methods():
-    b = nii.Bunch(a=2)
+    b = nib.Bunch(a=2)
     b.update(a=3)
     newb = b.dictcopy()
     yield assert_equal, b.a, 3
@@ -45,13 +44,13 @@ def test_bunch_hash():
     # the hash will be unique to each machine.
     pth = os.path.split(os.path.abspath(__file__))[0]
     json_pth = os.path.join(pth, 'realign_json.json')
-    b = nii.Bunch(infile = json_pth, 
+    b = nib.Bunch(infile = json_pth,
                   otherthing = 'blue',
                   yat = True)
     newbdict, bhash = b._get_bunch_hash()
     yield assert_equal, bhash, 'ddcc7b4ec5675df8cf317a48bd1857fa'
     # Make sure the hash stored in the json file for `infile` is correct.
-    jshash = nii.md5()
+    jshash = nib.md5()
     fp = file(json_pth)
     jshash.update(fp.read())
     fp.close()
@@ -75,7 +74,7 @@ def teardown_file(tmp_dir):
 
 
 def test_TraitedSpec():
-    yield assert_true, nib.TraitedSpec().hashval
+    yield assert_true, nib.TraitedSpec().get_hashval()
     yield assert_equal, nib.TraitedSpec().__repr__(), '\n\n'
     
     class spec(nib.TraitedSpec):
@@ -89,8 +88,8 @@ def test_TraitedSpec():
     yield assert_raises, nib.traits.TraitError, specfunc, 1
     infields = spec(foo=1)
     hashval = ({'foo': 1, 'goo': '0.0000000000'}, 'cb03be1c3182ff941eecea6440c910f0')
-    yield assert_equal, infields.hashval[0], hashval[0]
-    yield assert_equal, infields.hashval[1], hashval[1]
+    yield assert_equal, infields.get_hashval(), hashval
+    #yield assert_equal, infields.hashval[1], hashval[1]
     yield assert_equal, infields.__repr__(), '\nfoo = 1\ngoo = 0.0\n'
 
 def test_TraitedSpec_logic():
@@ -114,9 +113,9 @@ def test_TraitedSpec_logic():
     yield assert_raises, TypeError, setattr(myif.inputs, 'kung', 10.0)
     myif.inputs.foo = 1
     yield assert_equal,  myif.inputs.foo, 1
-    myif.inputs.bar = 1
-    yield assert_equal, myif.inputs.foo, Undefined
-    myif.inputs.foo = 1
+    set_bar = lambda : setattr(myif.inputs, 'bar', 1)
+    yield assert_raises, IOError, set_bar
+    yield assert_equal, myif.inputs.foo, 1
     myif.inputs.kung = 2
     yield assert_equal, myif.inputs.kung, 2.0
    
@@ -137,11 +136,27 @@ def test_TraitedSpec_withFile():
     class spec2(nib.TraitedSpec):
         moo = nib.File(exists=True)
         doo = nib.traits.List(nib.File(exists=True))
-    infields = spec2(moo=tmp_infile,doo=[tmp_infile])
-    if config.get('execution', 'hash_method').lower() == 'content':
-        yield assert_equal, infields.hashval[1], '8c227fb727c32e00cd816c31d8fea9b9'
+    infields = spec2(moo=tmp_infile, doo=[tmp_infile])
+    hashval = infields.get_hashval(hash_method='content')
+    yield assert_equal, hashval[1], '8c227fb727c32e00cd816c31d8fea9b9'
     teardown_file(tmpd)
-    
+
+@skipif(checknose)
+def test_TraitedSpec_withNoFileHashing():
+    tmp_infile = setup_file()
+    tmpd, nme = os.path.split(tmp_infile)
+    pwd = os.getcwd()
+    os.chdir(tmpd)
+    yield assert_true, os.path.exists(tmp_infile)
+    class spec2(nib.TraitedSpec):
+        moo = nib.File(exists=True, hash_files=False)
+        doo = nib.traits.List(nib.File(exists=True))
+    infields = spec2(moo=nme, doo=[tmp_infile])
+    hashval = infields.get_hashval(hash_method='content')
+    yield assert_equal, hashval[1], '642c326a05add933e9cdc333ce2d0ac2'
+    os.chdir(pwd)
+    teardown_file(tmpd)
+
 def test_Interface():
     yield assert_equal, nib.Interface.input_spec, None
     yield assert_equal, nib.Interface.output_spec, None
@@ -196,26 +211,7 @@ def test_BaseInterface():
 
     yield assert_equal, DerivedInterface2.help(), None
     yield assert_equal, DerivedInterface2()._outputs().foo, Undefined
-    yield assert_raises, Exception, DerivedInterface2(goo=1).run
-
-    class DerivedInterface3(DerivedInterface2):
-        def _run_interface(self, runtime):
-            runtime.returncode = 1
-            return runtime
-
-    yield assert_equal, DerivedInterface3(goo=1).run().outputs, None
-    
-    class DerivedInterface4(DerivedInterface):
-        def _run_interface(self, runtime):
-            runtime.returncode = 0
-            return runtime
-    yield assert_equal, DerivedInterface4(goo=1).run().outputs, None
-
-    class DerivedInterface5(DerivedInterface2):
-        def _run_interface(self, runtime):
-            runtime.returncode = 0
-            return runtime
-    yield assert_raises, NotImplementedError, DerivedInterface5(goo=1).run
+    yield assert_raises, NotImplementedError, DerivedInterface2(goo=1).run
 
     nib.BaseInterface.input_spec = None
     yield assert_raises, Exception, nib.BaseInterface

@@ -8,39 +8,29 @@ Exaples  FSL, matlab/SPM , afni
 Requires Packages to be installed
 """
 
-import os
-import subprocess
+from ConfigParser import NoOptionError
 from copy import deepcopy
+import datetime
+import errno
+import os
 from socket import gethostname
 from string import Template
+import select
+import subprocess
 from time import time
 from warnings import warn
 
-
-import enthought.traits.api as traits
-from enthought.traits.trait_handlers import TraitDictObject, TraitListObject
-from nipype.interfaces.traits import Undefined
-
-from nipype.utils.filemanip import md5, hash_infile, FileNotFoundError, \
-    hash_timestamp
+from nipype.interfaces.traits_extension import (traits, Undefined, TraitDictObject,
+                                                TraitListObject, TraitError,
+                                                isdefined, File, Directory, has_metadata)
+from nipype.utils.filemanip import (md5, hash_infile, FileNotFoundError,
+                                    hash_timestamp)
 from nipype.utils.misc import is_container
-from enthought.traits.trait_errors import TraitError
 from nipype.utils.config import config
-from nipype.utils.misc import isdefined
-from ConfigParser import NoOptionError
+from nipype.utils.logger import iflogger
+
 
 __docformat__ = 'restructuredtext'
-
-# We'll use our versions of File and Directory until error reporting
-# will be fixed upstream
-#try:
-#    class dummy(traits.HasTraits):
-#        foo = traits.File
-#    dummy().foo = 'bar'
-#    from enthought.traits.api import File, Directory
-#except:
-#    warn('traitsUI unavailable')
-from nipype.interfaces.traits import File, Directory
 
 def load_template(name):
     """Load a template from the script_templates directory
@@ -111,6 +101,11 @@ class Bunch(object):
         '''Support dictionary get() functionality
         '''
         return self.__dict__.get(*args)
+
+    def set(self, **kwargs):
+        '''Support dictionary get() functionality
+        '''
+        return self.__dict__.update(**kwargs)
 
     def dictcopy(self):
         """returns a deep copy of existing Bunch as a dictionary"""
@@ -271,7 +266,7 @@ class BaseTraitedSpec(traits.HasTraits):
 
     new attribute:
 
-    * hashval : returns a tuple containing the state of the trait as a dict and
+    * get_hashval : returns a tuple containing the state of the trait as a dict and
       hashvalue corresponding to dict.
 
     XXX Reconsider this in the long run, but it seems like the best
@@ -285,6 +280,7 @@ class BaseTraitedSpec(traits.HasTraits):
         # therefore these args were being ignored.
         #super(TraitedSpec, self).__init__(*args, **kwargs)
         super(BaseTraitedSpec, self).__init__(**kwargs)
+        traits.push_exception_handler(reraise_exceptions=True)
         undefined_traits = {}
         for trait in self.copyable_trait_names():
             if not self.traits()[trait].usedefault:
@@ -325,7 +321,6 @@ class BaseTraitedSpec(traits.HasTraits):
         """
         if isdefined(new):
             trait_spec = self.traits()[name]
-            msg = None
             # for each xor, set to default_value
             undefined_traits = {}
             for trait_name in trait_spec.xor:
@@ -333,14 +328,11 @@ class BaseTraitedSpec(traits.HasTraits):
                     # skip ourself
                     continue
                 if isdefined(getattr(self, trait_name)):
-                    undefined_traits[trait_name] = Undefined
-                    if not msg:
-                        msg = 'Input %s is mutually exclusive with inputs: %s' \
-                            % (name, ', '.join(trait_spec.xor))
-                    msg += '\nResetting %s to %s' % (trait_name, Undefined)
-            if msg:
-                warn(msg)
-            self.trait_set(trait_change_notify=False, **undefined_traits)
+                    self.trait_set(trait_change_notify=False, **{'%s'%name:Undefined})
+                    msg = 'Input "%s" is mutually exclusive with input "%s", ' \
+                          'which is already set' \
+                            % (name, trait_name)
+                    raise IOError(msg)
 
     def _requires_warn(self, obj, name, old, new):
         """Part of the xor behavior
@@ -386,7 +378,18 @@ class BaseTraitedSpec(traits.HasTraits):
         out = self._clean_container(out, Undefined)
         return out
 
-    def _clean_container(self, object, undefinedval=None):
+    def get_traitsfree(self, **kwargs):
+        """ Returns traited class as a dict
+
+        Augments the trait get function to return a dictionary without
+        any traits. The dictionary does not contain any attributes that
+        were Undefined
+        """
+        out = super(BaseTraitedSpec, self).get(**kwargs)
+        out = self._clean_container(out, skipundefined=True)
+        return out
+    
+    def _clean_container(self, object, undefinedval=None, skipundefined=False):
         """Convert a traited obejct into a pure python representation.
         """
         if isinstance(object, TraitDictObject) or isinstance(object, dict):
@@ -395,7 +398,8 @@ class BaseTraitedSpec(traits.HasTraits):
                 if isdefined(val):
                     out[key] = self._clean_container(val, undefinedval)
                 else:
-                    out[key] = undefinedval
+                    if not skipundefined:
+                        out[key] = undefinedval
         elif isinstance(object, TraitListObject) or isinstance(object, list) or \
                 isinstance(object, tuple):
             out = []
@@ -403,19 +407,21 @@ class BaseTraitedSpec(traits.HasTraits):
                 if isdefined(val):
                     out.append(self._clean_container(val, undefinedval))
                 else:
-                    out.append(undefinedval)
+                    if not skipundefined:
+                        out.append(undefinedval)
+                    else:
+                        out.append(None)
             if isinstance(object, tuple):
                 out = tuple(out)
         else:
             if isdefined(object):
                 out = object
             else:
-                out = undefinedval
+                if not skipundefined:
+                    out = undefinedval
         return out
 
-    #@traits.cached_property
-    @property
-    def hashval(self):
+    def get_hashval(self, hash_method=None):
         """Return a dictionary of our items with hashes for each file.
 
         Searches through dictionary items and if an item is a file, it
@@ -435,32 +441,42 @@ class BaseTraitedSpec(traits.HasTraits):
             The md5 hash value of the traited spec
 
         """
-        dict_withhash = self._get_sorteddict(self.get(),True)
-        dict_nofilename = self._get_sorteddict(self.get())
+        
+        dict_withhash = {}
+        dict_nofilename = {}
+        for name, val in sorted(self.get().items()):
+            if isdefined(val):
+                trait = self.trait(name)
+                hash_files = not has_metadata(trait.trait_type, "hash_files", False)
+                dict_nofilename[name] = self._get_sorteddict(val, hash_method=hash_method, hash_files=hash_files)
+                dict_withhash[name] = self._get_sorteddict(val,True, hash_method=hash_method, hash_files=hash_files)
         return (dict_withhash, md5(str(dict_nofilename)).hexdigest())
 
-    def _get_sorteddict(self, object, dictwithhash=False):
+    def _get_sorteddict(self, object, dictwithhash=False, hash_method=None, hash_files=True):
         if isinstance(object, dict):
             out = {}
             for key, val in sorted(object.items()):
                 if isdefined(val):
-                    out[key] = self._get_sorteddict(val, dictwithhash)
+                    out[key] = self._get_sorteddict(val, dictwithhash, hash_method=hash_method, hash_files=hash_files)
         elif isinstance(object, (list,tuple)):
             out = []
             for val in object:
                 if isdefined(val):
-                    out.append(self._get_sorteddict(val, dictwithhash))
+                    out.append(self._get_sorteddict(val, dictwithhash, hash_method=hash_method, hash_files=hash_files))
             if isinstance(object, tuple):
                 out = tuple(out)
         else:
             if isdefined(object):
-                if isinstance(object, str) and os.path.isfile(object):
-                    if config.get('execution', 'hash_method').lower() == 'timestamp':
+                if hash_files and isinstance(object, str) and os.path.isfile(object):
+                    if hash_method == None:
+                        hash_method = config.get('execution', 'hash_method')
+  
+                    if hash_method.lower() == 'timestamp':
                         hash = hash_timestamp(object)
-                    elif config.get('execution', 'hash_method').lower() == 'content':
+                    elif hash_method.lower() == 'content':
                         hash = hash_infile(object)
                     else:
-                        raise Exception("Unknown hash method: %s" % config.get('execution', 'hash_method'))
+                        raise Exception("Unknown hash method: %s" % hash_method)
                     if dictwithhash:
                         out = (object, hash)
                     else:
@@ -547,7 +563,7 @@ class Interface(object):
         """Execute the command."""
         raise NotImplementedError
 
-    def aggregate_outputs(self):
+    def aggregate_outputs(self, runtime=None, needed_outputs=None):
         """Called to populate outputs"""
         raise NotImplementedError
 
@@ -561,6 +577,10 @@ class Interface(object):
             Necessary for pipeline operation
         """
         raise NotImplementedError
+
+class BaseInterfaceInputSpec(TraitedSpec):
+    ignore_exception = traits.Bool(False, desc = "Print an error message instead \
+of throwing an exception in case the interface fails to run", usedefault = True)
 
 class BaseInterface(Interface):
     """Implements common interface functionality.
@@ -580,6 +600,7 @@ class BaseInterface(Interface):
     This class cannot be instantiated.
 
     """
+    input_spec = BaseInterfaceInputSpec
 
     def __init__(self, **inputs):
         if not self.input_spec:
@@ -588,12 +609,14 @@ class BaseInterface(Interface):
         self.inputs = self.input_spec(**inputs)
 
     @classmethod
-    def help(cls):
+    def help(cls, returnhelp = False):
         """ Prints class help
         """
-        cls._inputs_help()
-        print ''
-        cls._outputs_help()
+        allhelp = '\n'.join(cls._inputs_help() + [''] + cls._outputs_help())
+        if returnhelp:
+            return allhelp
+        else:
+            print allhelp
 
     @classmethod
     def _inputs_help(cls):
@@ -640,7 +663,7 @@ class BaseInterface(Interface):
             helpstr += manhelpstr
         if opthelpstr:
             helpstr += opthelpstr
-        print '\n'.join(helpstr)
+        return helpstr
 
     @classmethod
     def _outputs_help(cls):
@@ -652,7 +675,7 @@ class BaseInterface(Interface):
                 helpstr += ['%s: %s' % (name, spec.desc)]
         else:
             helpstr += ['None']
-        print '\n'.join(helpstr)
+        return helpstr
 
     def _outputs(self):
         """ Returns a bunch containing output fields for the class
@@ -748,13 +771,39 @@ class BaseInterface(Interface):
                         environ=env,
                         hostname=gethostname())
         t = time()
-        runtime = self._run_interface(runtime)
-        runtime.duration = time() - t
-        results = InterfaceResult(interface, runtime)
-        if results.runtime.returncode is None:
-            raise Exception('Returncode from an interface cannot be None')
-        if results.runtime.returncode == 0:
+        try:
+            runtime = self._run_interface(runtime)
+            runtime.duration = time() - t
+            results = InterfaceResult(interface, runtime)
             results.outputs = self.aggregate_outputs(results.runtime)
+        except Exception, e:
+            if len(e.args) == 0:
+                e.args = ("")
+                
+            message = "\nInterface %s failed to run."%self.__class__.__name__
+            
+            if config.has_option('logging', 'interface_level') and config.get('logging', 'interface_level').lower() == 'debug':
+                inputs_str = "Inputs:" + str(self.inputs) + "\n"
+            else:
+                inputs_str = ''
+            
+            if len(e.args) == 1 and isinstance(e.args[0], str):
+                e.args = (e.args[0] + " ".join([message, inputs_str]),)
+            else:
+                e.args += (message, )
+                if inputs_str != '':
+                    e.args += (inputs_str, )
+
+            #exception raising inhibition for special cases
+            if hasattr(self.inputs,'ignore_exception') and \
+            isdefined(self.inputs.ignore_exception) and \
+            self.inputs.ignore_exception:
+                import traceback, sys
+                runtime.traceback = traceback.format_exc()
+                runtime.traceback_args = e.args
+                return InterfaceResult(interface, runtime)
+            else:
+                raise
         return results
 
     def _list_outputs(self):
@@ -765,13 +814,15 @@ class BaseInterface(Interface):
         else:
             return None
 
-    def aggregate_outputs(self, runtime=None):
+    def aggregate_outputs(self, runtime=None, needed_outputs=None):
         """ Collate expected outputs and check for existence
         """
         predicted_outputs = self._list_outputs()
         outputs = self._outputs()
         if predicted_outputs:
             for key, val in predicted_outputs.items():
+                if needed_outputs and key not in needed_outputs:
+                    continue
                 try:
                     setattr(outputs, key, val)
                     value = getattr(outputs, key)
@@ -784,8 +835,109 @@ class BaseInterface(Interface):
                         raise error
         return outputs
 
+class Stream(object):
+    """Function to capture stdout and stderr streams with timestamps
 
-class CommandLineInputSpec(TraitedSpec):
+    http://stackoverflow.com/questions/4984549/merge-and-sync-stdout-and-stderr/5188359#5188359
+    """
+
+    def __init__(self, name, impl):
+        self._name = name
+        self._impl = impl
+        self._buf = ''
+        self._rows = []
+        self._lastidx = 0
+
+    def fileno(self):
+        "Pass-through for file descriptor."
+        return self._impl.fileno()
+
+    def read(self, drain=0):
+        "Read from the file descriptor. If 'drain' set, read until EOF."
+        while self._read(drain) is not None:
+            if not drain:
+                break
+
+    def _read(self, drain):
+        "Read from the file descriptor"
+        fd = self.fileno()
+        buf = os.read(fd, 4096)
+        if not buf and not self._buf:
+            return None
+        if '\n' not in buf:
+            if not drain:
+                self._buf += buf
+                return []
+
+        # prepend any data previously read, then split into lines and format
+        buf = self._buf + buf
+        if '\n' in buf:
+            tmp, rest = buf.rsplit('\n', 1)
+        else:
+            tmp = buf
+            rest = None
+        self._buf = rest
+        now = datetime.datetime.now().isoformat()
+        rows = tmp.split('\n')
+        self._rows += [(now, '%s %s:%s' % (self._name, now, r), r) for r in rows]
+        for idx in range(self._lastidx, len(self._rows)):
+            iflogger.info(self._rows[idx][1])
+        self._lastidx = len(self._rows)
+
+def run_command(runtime, timeout=0.2):
+    """
+    Run a command, read stdout and stderr, prefix with timestamp. The returned
+    runtime contains a merged stdout+stderr log with timestamps
+
+    http://stackoverflow.com/questions/4984549/merge-and-sync-stdout-and-stderr/5188359#5188359
+    """
+    PIPE = subprocess.PIPE
+    proc = subprocess.Popen(runtime.cmdline,
+                             stdout=PIPE,
+                             stderr=PIPE,
+                             shell=True,
+                             cwd=runtime.cwd,
+                             env=runtime.environ)
+    streams = [
+        Stream('stdout', proc.stdout),
+        Stream('stderr', proc.stderr)
+        ]
+
+    def _process(drain=0):
+        try:
+            res = select.select(streams, [], [], timeout)
+        except select.error, e:
+            iflogger.info(str(e))
+            if e[0] == errno.EINTR:
+                return
+            else:
+                raise
+        else:
+            for stream in res[0]:
+                stream.read(drain)
+
+    while proc.returncode is None:
+        proc.poll()
+        _process()
+    runtime.returncode = proc.returncode
+    _process(drain=1)
+
+    # collect results, merge and return
+    result = {}
+    temp = []
+    for stream in streams:
+        rows = stream._rows
+        temp += rows
+        result[stream._name] = [r[2] for r in rows]
+    temp.sort()
+    result['merged'] = [r[1] for r in temp]
+    runtime.stderr = '\n'.join(result['stderr'])
+    runtime.stdout = '\n'.join(result['stdout'])
+    runtime.merged = result['merged']
+    return runtime
+
+
+class CommandLineInputSpec(BaseInterfaceInputSpec):
     args = traits.Str(argstr='%s', desc='Additional parameters to the command')
     environ = traits.DictStrStr(desc='Environment variables', usedefault=True)
 
@@ -812,8 +964,8 @@ class CommandLine(BaseInterface):
     >>> cli.cmdline
     'ls -al'
 
-    >>> cli.inputs.trait_get()
-    {'args': '-al', 'environ': {'DISPLAY': ':1'}}
+    >>> cli.inputs.trait_get() #doctest: +SKIP
+    {'ignore_exception': False, 'args': '-al', 'environ': {'DISPLAY': ':1'}}
 
     >>> cli.help()
     Inputs
@@ -822,14 +974,15 @@ class CommandLine(BaseInterface):
     Optional:
      args: Additional parameters to the command
      environ: Environment variables (default={})
+     ignore_exception: Print an error message instead of throwing an exception in case the interface fails to run (default=False)
     <BLANKLINE>
     Outputs
     -------
     None
 
 
-    >>> cli.inputs.hashval
-    ({'args': '-al', 'environ': {'DISPLAY': ':1'}}, '998f3bdb3d4ed9b5177e34387117cb0d')
+    >>> cli.inputs.get_hashval()
+    ({'ignore_exception': False, 'args': '-al', 'environ': {'DISPLAY': ':1'}}, 'b1faf85652295456a906f053d48daef6')
 
     """
 
@@ -865,6 +1018,14 @@ class CommandLine(BaseInterface):
         return ' '.join(allargs)
 
 
+
+    def raise_exception(self, runtime):
+        message = "Command:\n" + runtime.cmdline + "\n"
+        message += "Standard output:\n" + runtime.stdout + "\n"
+        message += "Standard error:\n" + runtime.stderr + "\n"
+        message += "Return code: " + str(runtime.returncode)
+        raise RuntimeError(message)
+
     def _run_interface(self, runtime):
         """Execute command via subprocess
 
@@ -884,21 +1045,17 @@ class CommandLine(BaseInterface):
         if not self._exists_in_path(self.cmd.split()[0]):
             raise IOError("%s could not be found on host %s"%(self.cmd.split()[0],
                                                          runtime.hostname))
-        proc = subprocess.Popen(runtime.cmdline,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE,
-                                 shell=True,
-                                 cwd=runtime.cwd,
-                                 env=runtime.environ)
-        runtime.stdout, runtime.stderr = proc.communicate()
-        runtime.returncode = proc.returncode
+        runtime = run_command(runtime)
+        if runtime.returncode is None or runtime.returncode != 0:
+            self.raise_exception(runtime)
+
         return runtime
 
     def _exists_in_path(self, cmd):
         '''
         Based on a code snippet from http://orip.org/2009/08/python-checking-if-executable-exists-in.html
         '''
-    
+
         extensions = os.environ.get("PATHEXT", "").split(os.pathsep)
         for directory in os.environ.get("PATH", "").split(os.pathsep):
             base = os.path.join(directory, cmd)
@@ -907,7 +1064,7 @@ class CommandLine(BaseInterface):
                 if os.path.exists(filename):
                     return True
         return False
-  
+
     def _gen_filename(self, name):
         """ Generate filename attributes before running.
 
@@ -935,7 +1092,10 @@ class CommandLine(BaseInterface):
                     "string for attr '%s' with value '%s'."  \
                     % (self, trait_spec.name, value)
                 raise ValueError(msg)
-        elif trait_spec.is_trait_type(traits.List):
+        #traits.Either turns into traits.TraitCompound and does not have any inner_traits
+        elif trait_spec.is_trait_type(traits.List) \
+        or (trait_spec.is_trait_type(traits.TraitCompound) \
+        and isinstance(value, list)):
             # This is a bit simple-minded at present, and should be
             # construed as the default. If more sophisticated behavior
             # is needed, it can be accomplished with metadata (e.g.
@@ -949,7 +1109,7 @@ class CommandLine(BaseInterface):
             if sep == None:
                 sep = ' '
             if argstr.endswith('...'):
-                
+
                 # repeatable option
                 # --id %d... will expand to
                 # --id 1 --id 2 --id 3 etc.,.
@@ -998,6 +1158,20 @@ class CommandLine(BaseInterface):
         first_args = [arg for pos, arg in sorted(initial_args.items())]
         last_args = [arg for pos, arg in sorted(final_args.items())]
         return first_args + all_args + last_args
+    
+class StdOutCommandLineInputSpec(CommandLineInputSpec):
+    out_file = File(argstr="> %s", position=-1, genfile=True)
+    
+class StdOutCommandLine(CommandLine):
+    input_spec = StdOutCommandLineInputSpec
+    
+    def _gen_filename(self, name):
+        if name is 'out_file':
+            return self._gen_outfilename()
+        else:
+            return None
+    def _gen_outfilename(self):
+        raise NotImplementedError
 
 
 class MultiPath(traits.List):
@@ -1008,7 +1182,14 @@ class MultiPath(traits.List):
         if not isdefined(value) or (isinstance(value, list) and len(value) == 0):
             return Undefined
         newvalue = value
-        if not isinstance(value, list):
+
+        if not isinstance(value, list) \
+        or (self.inner_traits() \
+            and isinstance(self.inner_traits()[0].trait_type, traits.List) \
+            and not isinstance(self.inner_traits()[0].trait_type, InputMultiPath) \
+            and isinstance(value, list) \
+            and value \
+            and not isinstance(value[0], list)):
             newvalue = [value]
         value = super(MultiPath, self).validate(object, name, newvalue)
 

@@ -17,9 +17,8 @@ import numpy as np
 
 from nipype.interfaces.fsl.base import FSLCommand, FSLCommandInputSpec
 from nipype.interfaces.base import (TraitedSpec, File, InputMultiPath,
-                                    OutputMultiPath, Undefined, traits)
-from nipype.utils.filemanip import split_filename
-from nipype.utils.misc import isdefined
+                                    OutputMultiPath, Undefined, traits,
+                                    isdefined)
 
 from nibabel import load
 
@@ -123,7 +122,7 @@ class BET(FSLCommand):
         # accordingly.
         runtime = super(BET, self)._run_interface(runtime)
         if runtime.stderr:
-            runtime.returncode = 1
+            self.raise_exception(runtime)
         return runtime
 
     def _gen_outfilename(self):
@@ -145,6 +144,9 @@ class BET(FSLCommand):
                      self.inputs.reduce_bias):
             outputs['mask_file'] = self._gen_fname(outputs['out_file'],
                                                suffix = '_mask')
+        if isdefined(self.inputs.outline) and self.inputs.outline:
+            outputs['outline_file'] = self._gen_fname(outputs['out_file'],
+                                               suffix = '_overlay')
         if isdefined(self.inputs.no_output) and self.inputs.no_output:
             outputs['out_file'] = Undefined
         return outputs
@@ -269,6 +271,15 @@ class FAST(FSLCommand):
     input_spec = FASTInputSpec
     output_spec = FASTOutputSpec
 
+    def _format_arg(self, name, spec, value):
+        # first do what should be done in general
+        formated = super(FAST, self)._format_arg(name, spec, value)
+        if name == 'in_files':
+            # FAST needs the -S parameter value to correspond to the number
+            # of input images, otherwise it will ignore all but the first
+            formated = "-S %d %s" % (len(value), formated)
+        return formated
+
     def _list_outputs(self):
         outputs = self.output_spec().get()
         if not isdefined(self.inputs.number_classes):
@@ -284,15 +295,25 @@ class FAST(FSLCommand):
 
         outputs['tissue_class_map'] = self._gen_fname(basefile,
                                                       suffix = '_seg')
-        outputs['tissue_class_files'] = []
-        for  i in range(nclasses):
-            outputs['tissue_class_files'].append(self._gen_fname(basefile,
-                                                                 suffix = '_seg_%d'%(i)))
+        if self.inputs.segments:
+            outputs['tissue_class_files'] = []
+            for  i in range(nclasses):
+                outputs['tissue_class_files'].append(
+                        self._gen_fname(basefile, suffix = '_seg_%d'%(i)))
         if isdefined(self.inputs.output_biascorrected):
             outputs['restored_image'] = []
-            for val,f in enumerate(self.inputs.in_files):
-                outputs['restored_image'].append(self._gen_fname(f,
-                                                                 suffix = '_restore_%d'%(val)))
+            if len(self.inputs.in_files) > 1:
+                # for multi-image segmentation there is one corrected image
+                # per input
+                for val,f in enumerate(self.inputs.in_files):
+                    # image numbering is 1-based
+                    outputs['restored_image'].append(
+                            self._gen_fname(basefile, suffix = '_restore_%d'%(val+1)))
+            else:
+                # single image segmentation has unnumbered output image
+                outputs['restored_image'].append(
+                        self._gen_fname(basefile, suffix = '_restore'))
+
         outputs['mixeltype'] = self._gen_fname(basefile, suffix = '_mixeltype')
         if not self.inputs.no_pve:
             outputs['partial_volume_map'] = self._gen_fname(basefile, suffix = '_pveseg')
@@ -302,9 +323,23 @@ class FAST(FSLCommand):
                                                                        suffix='_pve_%d'%(i)))
         if self.inputs.output_biasfield:
             outputs['bias_field'] = []
-            for val,f in enumerate(self.inputs.in_files):
-                outputs['bias_field'].append(self._gen_fname(basefile, suffix='_bias_%d'%val))
-        #if self.inputs.probability_maps:
+            if len(self.inputs.in_files) > 1:
+                # for multi-image segmentation there is one bias field image
+                # per input
+                for val,f in enumerate(self.inputs.in_files):
+                    # image numbering is 1-based
+                    outputs['bias_field'].append(
+                            self._gen_fname(basefile, suffix='_bias_%d'%(val+1)))
+            else:
+                # single image segmentation has unnumbered output image
+                outputs['bias_field'].append(
+                        self._gen_fname(basefile, suffix='_bias'))
+
+        if self.inputs.probability_maps:
+            outputs['probability_maps'] = []
+            for i in range(nclasses):
+                outputs['probability_maps'].append(
+                        self._gen_fname(basefile, suffix='_prob_%d'%(i)))
         return outputs
 
 class FLIRTInputSpec(FSLCommandInputSpec):
@@ -733,47 +768,45 @@ class FNIRT(FSLCommand):
     
     
     filemap = {'warped_file':'warped',
-                'field_file':'field',
-                   'jacobian_file':'field_jacobian',
-                   'modulatedref_file':'modulated',
-                   'out_intensitymap_file':'intmap',
-                   'log_file':'log.txt',
-                   'fieldcoeff_file':'fieldwarp'}
+               'field_file':'field',
+               'jacobian_file':'field_jacobian',
+               'modulatedref_file':'modulated',
+               'out_intensitymap_file':'intmap',
+               'log_file':'log.txt',
+               'fieldcoeff_file':'fieldwarp'}
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
         for key, suffix in self.filemap.items():
-            outkey = key
             inval = getattr(self.inputs, key)
-            if isdefined(inval):
+            change_ext = True
+            if key in ['warped_file', 'log_file']:
+                if suffix.endswith('.txt'):
+                    change_ext=False
+                if isdefined(inval):
+                    outputs[key] = inval
+                else:
+                    outputs[key] = self._gen_fname(self.inputs.in_file,
+                                                   suffix='_'+suffix,
+                                                   change_ext=change_ext)
+            elif isdefined(inval):
                 if isinstance(inval, bool):
                     if inval:
-                        change_ext = True
-                        if suffix.endswith('.txt'):
-                            change_ext=False
-                        outputs[outkey] = self._gen_fname(self.inputs.in_file,
-                                                          suffix='_'+suffix,
-                                                          change_ext=change_ext)
+                        outputs[key] = self._gen_fname(self.inputs.in_file,
+                                                       suffix='_'+suffix,
+                                                       change_ext=change_ext)
                 else:
-                    outputs[outkey] = inval
+                    outputs[key] = inval
         return outputs
 
     def _format_arg(self, name, spec, value):
         if name in self.filemap.keys():
-            if isinstance(value, bool) and value:
-                fname = self._list_outputs()[name]
-            else:
-                fname = value
-            return spec.argstr % fname
+            return spec.argstr % self._list_outputs()[name]
         return super(FNIRT, self)._format_arg(name, spec, value)
     
     def _gen_filename(self, name):
-        if name in self.filemap.keys():
-            suffix = self.filemap[name]
-            change_ext = True
-            if suffix.endswith('.txt'):
-                change_ext=False
-            return self._gen_fname(self.inputs.in_file, suffix='_'+suffix, change_ext=change_ext)
+        if name in ['warped_file', 'log_file']:
+            return self._list_outputs()[name]
         return None
 
     def write_config(self, configfile):
@@ -824,8 +857,8 @@ class ApplyWarpInputSpec(FSLCommandInputSpec):
                   desc='filename for post-transform (affine matrix)')
     mask_file = File(exists=True, argstr='--mask=%s',
                     desc='filename for mask image (in reference space)')
-    interp = traits.Enum('nn', 'trilinear', 'sinc', argstr='--interp=%s',
-                         desc='interpolation method {nn,trilinear,sinc}')
+    interp = traits.Enum('nn', 'trilinear', 'sinc', 'spline', argstr='--interp=%s',
+                         desc='interpolation method')
 
 class ApplyWarpOutputSpec(TraitedSpec):
     out_file = File(exists=True, desc='Warped output file')
@@ -931,8 +964,8 @@ class SUSANInputSpec(FSLCommandInputSpec):
                    desc='filename of input timeseries')
     brightness_threshold = traits.Float(argstr='%.10f',
                                         position=2, mandatory=True,
-                   desc='brightness threshold and should be greater than' \
-                        'noise level and less than contrast of edges to' \
+                   desc='brightness threshold and should be greater than '
+                        'noise level and less than contrast of edges to '
                         'be preserved.')
     fwhm = traits.Float(argstr='%.10f',
                         position=3, mandatory=True,
@@ -943,9 +976,9 @@ class SUSANInputSpec(FSLCommandInputSpec):
                         desc='whether to use a local median filter in the cases where single-point noise is detected')
     usans = traits.List(traits.Tuple(File(exists=True),traits.Float), maxlen=2,
                         argstr='', position=6,
-             desc='determines whether the smoothing area (USAN) is to be' \
-                  'found from secondary images (0, 1 or 2). A negative' \
-                  'value for any brightness threshold will auto-set the' \
+             desc='determines whether the smoothing area (USAN) is to be '
+                  'found from secondary images (0, 1 or 2). A negative '
+                  'value for any brightness threshold will auto-set the '
                   'threshold at 10% of the robust range')
     out_file = File(argstr='%s', position=-1, genfile=True,
                     desc='output file name')

@@ -16,8 +16,7 @@ import re
 from nipype.utils.filemanip import fname_presuffix, split_filename
 
 from nipype.interfaces.freesurfer.base import FSCommand, FSTraitedSpec
-from nipype.interfaces.base import TraitedSpec, File, traits, OutputMultiPath
-from nipype.utils.misc import isdefined
+from nipype.interfaces.base import TraitedSpec, File, traits, OutputMultiPath, isdefined
 
 filemap = dict(cor='cor', mgh='mgh', mgz='mgz', minc='mnc',
                afni='brik', brik='brik', bshort='bshort',
@@ -35,9 +34,9 @@ class SampleToSurfaceInputSpec(FSTraitedSpec):
 
     source_file = File(exists=True,mandatory=True,argstr="--mov %s",
                          desc="volume to sample values from")
-    reference_file = File(exists=True, argstr="--ref %s", 
+    reference_file = File(exists=True, argstr="--ref %s",
                           desc="reference volume (default is orig.mgz)")
-    
+
     hemi = traits.Enum("lh","rh", mandatory=True, argstr="--hemi %s",
                        desc="target hemisphere")
     surface = traits.String(argstr="--surf", desc="target surface (default is white)")
@@ -51,7 +50,7 @@ class SampleToSurfaceInputSpec(FSTraitedSpec):
     mni152reg = traits.Bool(argstr="--mni152reg",
                             required=True,xor=reg_xors,
                             desc="source volume is in MNI152 space")
-    
+
     apply_rot = traits.Tuple(traits.Float,traits.Float,traits.Float,
                              argstr="--rot %.3f %.3f %.3f",
                              desc="rotation angles (in degrees) to apply to reg matrix")
@@ -74,7 +73,7 @@ class SampleToSurfaceInputSpec(FSTraitedSpec):
 
     smooth_vol = traits.Float(argstr="--fwhm %.3f",desc="smooth input volume (mm fwhm)")
     smooth_surf = traits.Float(argstr="--surf-fwhm %.3f",desc="smooth output surface (mm fwhm)")
-    
+
     interp_method = traits.Enum("nearest","trilinear",desc="interpolation method")
 
     cortex_mask = traits.Bool(argstr="--cortex",xor=["mask_label"],
@@ -122,9 +121,9 @@ class SampleToSurfaceOutputSpec(TraitedSpec):
 
 class SampleToSurface(FSCommand):
     """Sample a volume to the cortical surface using Freesurfer's mri_vol2surf.
-  
-    You must supply a sampling method, range, and units.  You can project 
-    either a given distance (in mm) or a given fraction of the cortical 
+
+    You must supply a sampling method, range, and units.  You can project
+    either a given distance (in mm) or a given fraction of the cortical
     thickness at that vertex along the surface normal from the target surface,
     and then set the value of that vertex to be either the value at that point
     or the average or maximum value found along the projection vector.
@@ -137,15 +136,16 @@ class SampleToSurface(FSCommand):
 
     Examples
     --------
-    import nipype.interfaces.freesurfer as fs
-    sampler = fs.SampleToSurface(hemi="lh")
-    sampler.inputs.in_file = "cope1.nii.gz"
-    sampler.inputs.reg_file = "register.dat"
-    sampler.inputs.sampling_method = "average"
-    sampler.inputs.sampling_rage = 1
-    sampler.inputs.sampling_units = "frac"
-    res = sampler.run() # doctest: +SKIP
-   
+
+    >>> import nipype.interfaces.freesurfer as fs
+    >>> sampler = fs.SampleToSurface(hemi="lh")
+    >>> sampler.inputs.source_file = "cope1.nii.gz"
+    >>> sampler.inputs.reg_file = "register.dat"
+    >>> sampler.inputs.sampling_method = "average"
+    >>> sampler.inputs.sampling_range = 1
+    >>> sampler.inputs.sampling_units = "frac"
+    >>> res = sampler.run() # doctest: +SKIP
+
     """
     _cmd = "mri_vol2surf"
     input_spec = SampleToSurfaceInputSpec
@@ -246,18 +246,19 @@ class SurfaceSmooth(FSCommand):
     The surface is smoothed by an interative process of averaging the
     value at each vertex with those of its adjacent neighbors. You may supply
     either the number of iterations to run or a desired effective FWHM of the
-    smoothing process.  If the latter, the underlying program will calculate 
+    smoothing process.  If the latter, the underlying program will calculate
     the correct number of iterations internally.
 
     Examples
     --------
-    import nipype.interfaces.freesurfer as fs
-    smoother = fs.SurfaceSmooth()
-    smoother.inputs.in_file = "lh.cope1.mgz"
-    smoother.inputs.subject_id = "subj_1"
-    smoother.inputs.hemi = "lh"
-    smoother.inputs.fwhm = 5
-    smoother.run() # doctest: +SKIP
+
+    >>> import nipype.interfaces.freesurfer as fs
+    >>> smoother = fs.SurfaceSmooth()
+    >>> smoother.inputs.in_file = "lh.cope1.mgz"
+    >>> smoother.inputs.subject_id = "subj_1"
+    >>> smoother.inputs.hemi = "lh"
+    >>> smoother.inputs.fwhm = 5
+    >>> smoother.run() # doctest: +SKIP
 
     """
     _cmd = "mri_surf2surf"
@@ -314,13 +315,14 @@ class SurfaceTransform(FSCommand):
 
     Examples
     --------
-    from nipype.interfaces.freesurfer import SurfaceTransform
-    sxfm = SurfaceTransfrom()
-    sxfm.inputs.source_file = "lh.cope1.nii.gz"
-    sxfm.inputs.source_subject = "my_subject"
-    sxfm.inputs.target_subject = "fsaverage"
-    sxfm.inputs.hemi = "lh"
-    sxfm.run() # doctest: +SKIP
+
+    >>> from nipype.interfaces.freesurfer import SurfaceTransform
+    >>> sxfm = SurfaceTransform()
+    >>> sxfm.inputs.source_file = "lh.cope1.nii.gz"
+    >>> sxfm.inputs.source_subject = "my_subject"
+    >>> sxfm.inputs.target_subject = "fsaverage"
+    >>> sxfm.inputs.hemi = "lh"
+    >>> sxfm.run() # doctest: +SKIP
 
     """
     _cmd = "mri_surf2surf"
@@ -357,6 +359,53 @@ class SurfaceTransform(FSCommand):
         return None
 
 
+class ApplyMaskInputSpec(FSTraitedSpec):
+
+    in_file = File(exists=True,mandatory=True,position=-3,argstr="%s",
+                   desc="input image (will be masked)")
+    mask_file = File(exists=True,mandatory=True,position=-2,argstr="%s",
+                     desc="image defining mask space")
+    out_file = File(genfile=True,position=-1,argstr="%s",
+                    desc="final image to write")
+    xfm_file = File(exists=True,argstr="-xform %s",
+                    desc="LTA-format transformation matrix to align mask with input")
+    invert_xfm = traits.Bool(argstr="-invert",desc="invert transformation")
+    xfm_source = File(exists=True,argstr="-lta_src %s",desc="image defining transform source space")
+    xfm_target = File(exists=True,argstr="-lta_dst %s",desc="image defining transform target space")
+    use_abs = traits.Bool(argstr="-abs",desc="take absolute value of mask before applying")
+    mask_thresh = traits.Float(argstr="-T %.4f",desc="threshold mask before applying")
+
+class ApplyMaskOutputSpec(TraitedSpec):
+
+    out_file = File(exists=True,desc="masked image")
+
+class ApplyMask(FSCommand):
+    """Use Freesurfer's mri_mask to apply a mask to an image.
+
+    The mask file need not be binarized; it can be thresholded above a given
+    value before application. It can also optionally be transformed into input
+    space with an LTA matrix.
+
+    """
+    _cmd = "mri_mask"
+    input_spec = ApplyMaskInputSpec
+    output_spec = ApplyMaskOutputSpec
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs["out_file"] = self.inputs.out_file
+        if not isdefined(outputs["out_file"]):
+            outputs["out_file"] = fname_presuffix(self.inputs.in_file,
+                                                  suffix="_masked",
+                                                  newpath=os.getcwd(),
+                                                  use_ext=True)
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == "out_file":
+            return self._list_outputs()[name]
+        return None
+
 class SurfaceSnapshotsInputSpec(FSTraitedSpec):
 
     subject_id = traits.String(position=1,argstr="%s",mandatory=True,
@@ -365,20 +414,20 @@ class SurfaceSnapshotsInputSpec(FSTraitedSpec):
                        desc="hemisphere to visualize")
     surface = traits.String(position=3,argstr="%s",mandatory=True,
                             desc="surface to visualize")
-    
+
     show_curv = traits.Bool(argstr="-curv",desc="show curvature",xor=["show_gray_curv"])
     show_gray_curv = traits.Bool(argstr="-gray",desc="show curvature in gray",xor=["show_curv"])
-    
+
     overlay = File(exists=True,argstr="-overlay %s",desc="load an overlay volume/surface",
                    requires=["overlay_range"])
-    reg_xors = ["overlay_reg","identity_reg","find_reg","mni152_reg"]
+    reg_xors = ["overlay_reg", "identity_reg", "mni152_reg"]
     overlay_reg = traits.File(exists=True,argstr="-overlay-reg %s",xor=reg_xors,
                               desc="registration matrix file to register overlay to surface")
     identity_reg = traits.Bool(argstr="-overlay-reg-identity",xor=reg_xors,
                    desc="use the identity matrix to register the overlay to the surface")
     mni152_reg = traits.Bool(argstr="-mni152reg",xor=reg_xors,
                  desc="use to display a volume in MNI152 space on the average subject")
-   
+
     overlay_range = traits.Either(traits.Float,
                                   traits.Tuple(traits.Float, traits.Float),
                                   traits.Tuple(traits.Float, traits.Float, traits.Float),
@@ -399,7 +448,7 @@ class SurfaceSnapshotsInputSpec(FSTraitedSpec):
                       desc="path to annotation file to display")
     annot_name = traits.String(argstr="-annotation %s",xor=["annot_file"],
             desc="name of annotation to display (must be in $subject/label directory")
-    
+
     label_file = File(exists=True,argstr="-label %s",xor=["label_name"],
                       desc="path to label file to display")
     label_name = traits.String(argstr="-label %s",xor=["label_file"],
@@ -413,21 +462,21 @@ class SurfaceSnapshotsInputSpec(FSTraitedSpec):
 
     orig_suffix = traits.String(argstr="-orig %s",desc="set the orig surface suffix string")
     sphere_suffix = traits.String(argstr="-sphere %s",desc="set the sphere.reg suffix string")
-    
+
     show_color_scale = traits.Bool(argstr="-colscalebarflag 1",
                                    desc="display the color scale bar")
     show_color_text = traits.Bool(argstr="-colscaletext 1",
                                   desc="display text in the color scale bar")
-   
+
     six_images = traits.Bool(desc="also take anterior and posterior snapshots")
     screenshot_stem = traits.String(desc="stem to use for screenshot file names")
     stem_template_args = traits.List(traits.String,requires=["screenshot_stem"],
                     desc="input names to use as arguments for a string-formated stem template")
-    tcl_script = File(exists=True, argstr="%s",genfile=True, 
+    tcl_script = File(exists=True, argstr="%s",genfile=True,
                              desc="override default screenshot script")
 
 class SurfaceSnapshotsOutputSpec(TraitedSpec):
-    
+
     snapshots = OutputMultiPath(File(exists=True),
                     desc="tiff images of the surface from different perspectives")
 
@@ -436,25 +485,26 @@ class SurfaceSnapshots(FSCommand):
 
     By default, this takes snapshots of the lateral, medial, ventral,
     and dorsal surfaces.  See the ``six_images`` option to add the
-    anterior and posterior surfaces.  
-    
+    anterior and posterior surfaces.
+
     You may also supply your own tcl script (see the Freesurfer wiki for
     information on scripting tksurfer). The screenshot stem is set as the
     environment variable "_SNAPSHOT_STEM", which you can use in your
     own scripts.
 
-    Node that this interface will not run if you do not have graphics 
+    Node that this interface will not run if you do not have graphics
     enabled on your system.
 
     Examples
     --------
-    import nipype.interfaces.freesurfer as fs
-    shots = fs.SurfaceSnapshots(subject_id="fsaverage", hemi="lh", surface="pial")
-    shots.inputs.overlay = "zstat1.nii.gz"
-    shots.inputs.overlay_range = (2.3, 6)
-    shots.inputs.overlay_reg = "register.dat"
-    res = shots.run() # doctest: +SKIP
-    
+
+    >>> import nipype.interfaces.freesurfer as fs
+    >>> shots = fs.SurfaceSnapshots(subject_id="fsaverage", hemi="lh", surface="pial")
+    >>> shots.inputs.overlay = "zstat1.nii.gz"
+    >>> shots.inputs.overlay_range = (2.3, 6)
+    >>> shots.inputs.overlay_reg = "register.dat"
+    >>> res = shots.run() # doctest: +SKIP
+
     """
     _cmd = "tksurfer"
     input_spec = SurfaceSnapshotsInputSpec
@@ -475,7 +525,7 @@ class SurfaceSnapshots(FSCommand):
                 else:
                     return "-fminmax %.3f %.3f -fmid %.3f"%(value[0],value[2],value[1])
         elif name == "annot_name" and isdefined(value):
-            # Matching annot by name needs to strip the leading hemi and trailing 
+            # Matching annot by name needs to strip the leading hemi and trailing
             # extension strings
             if value.endswith(".annot"):
                 value = value[:-6]
@@ -483,7 +533,7 @@ class SurfaceSnapshots(FSCommand):
                 value = value[3:]
             return "-annotation %s"%value
         return super(SurfaceSnapshots, self)._format_arg(name, spec, value)
-    
+
     def _run_interface(self, runtime):
         if not isdefined(self.inputs.screenshot_stem):
             stem = "%s_%s_%s"%(
@@ -500,14 +550,14 @@ class SurfaceSnapshots(FSCommand):
         runtime.environ["_SNAPSHOT_STEM"] = stem
         self._write_tcl_script()
         runtime = super(SurfaceSnapshots, self)._run_interface(runtime)
-        # If a display window can't be opened, this will crash on 
+        # If a display window can't be opened, this will crash on
         # aggregate_outputs.  Let's try to parse stderr and raise a
         # better exception here if that happened.
         errors = ["surfer: failed, no suitable display found",
                   "Fatal Error in tksurfer.bin: could not open display"]
         for err in errors:
             if err in runtime.stderr:
-                raise RuntimeError("Could not open display")
+                self.raise_exception(runtime)
         # Tksurfer always (or at least always when you run a tcl script)
         # exits with a nonzero returncode.  We have to force it to 0 here.
         runtime.returncode = 0
@@ -537,7 +587,7 @@ class SurfaceSnapshots(FSCommand):
                            "rotate_brain_y -90",
                            "redraw",
                            "save_tiff $env(_SNAPSHOT_STEM)-ant.tif"])
-            
+
         script.append("exit")
         fid.write("\n".join(script))
         fid.close()
@@ -581,7 +631,7 @@ class ImageInfoOutputSpec(TraitedSpec):
     vox_sizes = traits.Tuple(desc="voxel sizes (mm)")
     orientation = traits.String(desc="image orientation")
     ph_enc_dir = traits.String(desc="phase encode direction")
-   
+
 
 class ImageInfo(FSCommand):
 
@@ -590,24 +640,24 @@ class ImageInfo(FSCommand):
     output_spec = ImageInfoOutputSpec
 
     def info_regexp(self, info, field, delim="\n"):
-        m = re.search("%s\s*:\s+(.+?)%s"%(field,delim), info) 
+        m = re.search("%s\s*:\s+(.+?)%s"%(field,delim), info)
         if m:
             return m.group(1)
         else:
             return None
 
-    def aggregate_outputs(self, runtime=None):
+    def aggregate_outputs(self, runtime=None, needed_outputs=None):
         outputs = self._outputs()
         info = runtime.stdout
         outputs.info = info
-        
+
         # Pulse sequence parameters
         for field in ["TE", "TR", "TI"]:
             fieldval = self.info_regexp(info, field, ",")
             if fieldval.endswith(" msec"):
                 fieldval = fieldval[:-5]
             setattr(outputs, field, fieldval)
-        
+
         # Voxel info
         vox = self.info_regexp(info, "voxel sizes")
         vox = tuple(vox.split(", "))
@@ -625,3 +675,93 @@ class ImageInfo(FSCommand):
         outputs.data_type = dtype
 
         return outputs
+
+class MRIsConvertInputSpec(FSTraitedSpec):
+    """
+    Uses Freesurfer's mris_convert to convert surface files to various formats
+    """
+    annot_file = File(exists=True, argstr="--annot %s",
+    desc="input is annotation or gifti label data")
+
+    parcstats_file = File(exists=True, argstr="--parcstats %s",
+    desc="infile is name of text file containing label/val pairs")
+
+    label_file = File(exists=True, argstr="--label %s",
+    desc="infile is .label file, label is name of this label")
+
+    scalarcurv_file = File(exists=True, argstr="-c %s",
+    desc="input is scalar curv overlay file (must still specify surface)")
+
+    functional_file = File(exists=True, argstr="-f %s",
+    desc="input is functional time-series or other multi-frame data (must specify surface)")
+
+    labelstats_outfile = File(exists=False, argstr="--labelstats %s",
+    desc="outfile is name of gifti file to which label stats will be written")
+
+    patch = traits.Bool(argstr="-p",desc="input is a patch, not a full surface")
+    rescale = traits.Bool(argstr="-r",desc="rescale vertex xyz so total area is same as group average")
+    normal = traits.Bool(argstr="-n",desc="output is an ascii file where vertex data")
+    xyz_ascii = traits.Bool(argstr="-a",desc="Print only surface xyz to ascii file")
+    vertex = traits.Bool(argstr="-v",desc="Writes out neighbors of a vertex in each row")
+
+    scale = traits.Float(argstr="-s %.3f",desc="scale vertex xyz by scale")
+    dataarray_num = traits.Int(argstr="--da_num %d",desc="if input is gifti, 'num' specifies which data array to use")
+
+    talairachxfm_subjid = traits.String(argstr="-t %s", desc="apply talairach xfm of subject to vertex xyz")
+    origname = traits.String(argstr="-o %s", desc="read orig positions")
+
+    in_file = File(exists=True, mandatory=True, position=-2, argstr='%s', desc='File to read/convert')
+    out_file = File(argstr='./%s', position=-1, genfile=True, desc='output filename or True to generate one')
+    #Not really sure why the ./ is necessary but the module fails without it
+
+    out_datatype = traits.Enum("ico","tri","stl","vtk","gii","mgh","mgz", mandatory=True,
+    desc="These file formats are supported:  ASCII:       .asc" \
+    "ICO: .ico, .tri GEO: .geo STL: .stl VTK: .vtk GIFTI: .gii MGH surface-encoded 'volume': .mgh, .mgz")
+
+class MRIsConvertOutputSpec(TraitedSpec):
+    """
+    Uses Freesurfer's mris_convert to convert surface files to various formats
+    """
+    converted = File(exists=True, desc='converted output surface')
+
+class MRIsConvert(FSCommand):
+    """
+    Uses Freesurfer's mris_convert to convert surface files to various formats
+
+    Example:
+
+    import nipype.interfaces.freesurfer as fs
+    mris = fs.MRIs_Convert()
+    mris.inputs.in_file = 'lh.pial'
+    mris.inputs.out_datatype = 'gii'
+    mris.run()
+    """
+    _cmd = 'mris_convert'
+    input_spec=MRIsConvertInputSpec
+    output_spec=MRIsConvertOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs["converted"] = os.path.abspath(self._gen_outfilename())
+        return outputs
+
+    def _gen_filename(self, name):
+        if name is 'out_file':
+            return self._gen_outfilename()
+        else:
+            return None
+    def _gen_outfilename(self):
+        if isdefined(self.inputs.annot_file):
+            _ , name , ext = split_filename(self.inputs.annot_file)
+        elif isdefined(self.inputs.parcstats_file):
+            _ , name , ext = split_filename(self.inputs.parcstats_file)
+        elif isdefined(self.inputs.label_file):
+            _ , name , ext = split_filename(self.inputs.label_file)
+        elif isdefined(self.inputs.scalarcurv_file):
+            _ , name , ext = split_filename(self.inputs.scalarcurv_file)
+        elif isdefined(self.inputs.functional_file):
+            _ , name , ext = split_filename(self.inputs.functional_file)
+        elif isdefined(self.inputs.in_file):
+            _ , name , ext = split_filename(self.inputs.in_file)
+
+        return name + ext + "_converted." + self.inputs.out_datatype

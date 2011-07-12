@@ -1,19 +1,27 @@
-
 """
-A pipeline example that uses several interfaces to
-perform analysis on diffusion weighted images using
-Diffusion Toolkit and FSL.
+========================================
+Using Diffusion Toolkit for ODF analysis
+========================================
 
-This tutorial uses data from out nipype-tutorial package. 
-"""
+A pipeline example that uses several interfaces to perform analysis on
+diffusion weighted images using Diffusion Toolkit tools.
 
+This tutorial is based on the 2010 FSL course and uses data freely available at
+the FSL website at: http://www.fmrib.ox.ac.uk/fslcourse/fsl_course_data2.tar.gz
 
-"""
+More details can be found at
+http://www.fmrib.ox.ac.uk/fslcourse/lectures/practicals/fdt/index.htm
+
+In order to run this tutorial you need to have Diffusion Toolkit and FSL tools installed and
+accessible from matlab/command line. Check by calling fslinfo and dtk from the command
+line.
+
 Tell python where to find the appropriate functions.
 """
 
 import nipype.interfaces.io as nio           # Data i/o
 import nipype.interfaces.fsl as fsl          # fsl
+import nipype.workflows.fsl as fsl_wf          # fsl
 import nipype.interfaces.diffusion_toolkit as dtk 
 import nipype.interfaces.utility as util     # utility
 import nipype.pipeline.engine as pe          # pypeline engine
@@ -36,9 +44,8 @@ package_check('IPython', '0.10', 'tutorial1')
 Setting up workflows
 --------------------
 This is a generic workflow for DTI data analysis using the FSL
-"""
 
-"""
+
 Data specific components
 ------------------------
 
@@ -131,8 +138,8 @@ bet.inputs.frac=0.34
 correct the diffusion weighted images for eddy_currents
 """
 
-eddycorrect = pe.Node(interface=fsl.EddyCorrect(),name='eddycorrect')
-eddycorrect.inputs.ref_num=0
+eddycorrect = fsl_wf.create_eddy_correct_pipeline('eddycorrect')
+eddycorrect.inputs.inputnode.ref_num=0
 
 
 hardi_mat = pe.Node(interface=dtk.HARDIMat(),name='hardi_mat')
@@ -145,8 +152,8 @@ connect all the nodes for this workflow
 
 compute_ODF.connect([
                         (fslroi,bet,[('roi_file','in_file')]),
-                        (eddycorrect, odf_recon,[('eddy_corrected','DWI')]),
-                        (eddycorrect, hardi_mat,[('eddy_corrected','reference_file')]),
+                        (eddycorrect, odf_recon,[('outputnode.eddy_corrected','DWI')]),
+                        (eddycorrect, hardi_mat,[('outputnode.eddy_corrected','reference_file')]),
                         (hardi_mat, odf_recon, [('out_file', 'matrix')])
                       ])
 
@@ -185,7 +192,7 @@ dwiproc.connect([
                     (datasource,compute_ODF,[('dwi','fslroi.in_file'),
                                                ('bvals','hardi_mat.bvals'),
                                                ('bvecs','hardi_mat.bvecs'),
-                                               ('dwi','eddycorrect.in_file')]),
+                                               ('dwi','eddycorrect.inputnode.in_file')]),
                     (compute_ODF,tractography,[('bet.mask_file','odf_tracker.mask1_file'),
                                                  ('odf_recon.ODF','odf_tracker.ODF'),
                                                  ('odf_recon.max','odf_tracker.max')

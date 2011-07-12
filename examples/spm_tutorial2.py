@@ -1,8 +1,9 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
-Using SPM for analysis
-=======================
+====================================
+Using SPM for analysis: Hierarchical
+====================================
 
 The spm_tutorial.py integrates several interfaces to perform a first
 and second level analysis on a two-subject data set.  The tutorial can
@@ -11,10 +12,7 @@ nipype tutorial directory:
 
     python spm_tutorial.py
 
-"""
-
-
-"""Import necessary modules from nipype."""
+Import necessary modules from nipype."""
 
 import nipype.interfaces.io as nio           # Data i/o
 import nipype.interfaces.spm as spm          # spm
@@ -31,25 +29,13 @@ import os                                    # system functions
 Preliminaries
 -------------
 
-Confirm package dependencies are installed.  (This is only for the
-tutorial, rarely would you put this in your own code.)
-"""
-
-from nipype.utils.misc import package_check
-
-package_check('numpy', '1.3', 'tutorial1')
-package_check('scipy', '0.7', 'tutorial1')
-package_check('networkx', '1.0', 'tutorial1')
-package_check('IPython', '0.10', 'tutorial1')
-
-"""Set any package specific configuration. The output file format
+Set any package specific configuration. The output file format
 for FSL routines is being set to uncompressed NIFTI and a specific
 version of matlab is being used. The uncompressed format is required
 because SPM does not handle compressed NIFTI.
 """
 
 # Tell fsl to generate all output in uncompressed nifti format
-print fsl.Info.version()
 fsl.FSLCommand.set_default_output_type('NIFTI')
 
 # Set the way matlab should be called
@@ -88,9 +74,9 @@ intensity or movement.
 """
 
 art = pe.Node(interface=ra.ArtifactDetect(), name="art")
-art.inputs.use_differences      = [True,True]
+art.inputs.use_differences      = [True, False]
 art.inputs.use_norm             = True
-art.inputs.norm_threshold       = 0.5
+art.inputs.norm_threshold       = 1
 art.inputs.zintensity_threshold = 3
 art.inputs.mask_type            = 'file'
 art.inputs.parameter_source     = 'SPM'
@@ -150,7 +136,7 @@ l1analysis = pe.Workflow(name='analysis')
 :class:`nipype.interfaces.spm.SpecifyModel`.
 """
 
-modelspec = pe.Node(interface=model.SpecifyModel(), name= "modelspec")
+modelspec = pe.Node(interface=model.SpecifySPMModel(), name= "modelspec")
 modelspec.inputs.concatenate_runs        = True
 
 """Generate a first level SPM.mat file for analysis
@@ -296,9 +282,9 @@ necessary to generate an SPM design matrix. In this tutorial, the same
 paradigm was used for every participant.
 """
 
-from nipype.interfaces.base import Bunch
-from copy import deepcopy
 def subjectinfo(subject_id):
+    from nipype.interfaces.base import Bunch
+    from copy import deepcopy
     print "Subject ID: %s\n"%str(subject_id)
     output = []
     names = ['Task-Odd','Task-Even']
@@ -406,6 +392,7 @@ report.inputs.base_directory = os.path.abspath('spm_tutorial2/report')
 report.inputs.parameterization = False
 
 def getstripdir(subject_id):
+    import os
     return os.path.join(os.path.abspath('spm_tutorial2/workingdir'),'_subject_id_%s' % subject_id)
 
 # store relevant outputs from various stages of the 1st level analysis
@@ -453,7 +440,7 @@ l2source.iterables = [('fwhm',fwhmlist),
                       ('con',contrast_ids)]
 
 
-"""Use :class:`nipype.interfaces.spm.OneSampleTTest` to perform a
+"""Use :class:`nipype.interfaces.spm.OneSampleTTestDesign` to perform a
 simple statistical analysis of the contrasts from the group of
 subjects (n=2 in this example).
 """
@@ -489,3 +476,4 @@ Execute the second level pipeline
 
 if __name__ == '__main__':
     l2pipeline.run()
+

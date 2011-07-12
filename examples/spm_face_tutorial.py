@@ -1,26 +1,26 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
+==================================================
+Using SPM for analysis: Famous vs non-famous faces
+==================================================
+
 Introduction
-=======================
+============
 
 The spm_face_tutorial.py recreates the classical workflow described in the SPM8 manual (http://www.fil.ion.ucl.ac.uk/spm/doc/manual.pdf)
 using auditory dataset that can be downloaded from http://www.fil.ion.ucl.ac.uk/spm/data/face_rep/face_rep_SPM5.html:
 
     python spm_tutorial.py
 
-"""
-
-"""Import necessary modules from nipype."""
+Import necessary modules from nipype."""
 
 import nipype.interfaces.io as nio           # Data i/o
 import nipype.interfaces.spm as spm          # spm
 import nipype.interfaces.matlab as mlab      # how to run matlab
-import nipype.interfaces.fsl as fsl          # fsl
 import nipype.interfaces.utility as util     # utility
 import nipype.pipeline.engine as pe          # pypeline engine
 import nipype.algorithms.modelgen as model   # model specification
-import nibabel as nb
 import os                                    # system functions
 
 """
@@ -28,26 +28,11 @@ import os                                    # system functions
 Preliminaries
 -------------
 
-Confirm package dependencies are installed.  (This is only for the
-tutorial, rarely would you put this in your own code.)
-"""
-
-from nipype.utils.misc import package_check
-
-package_check('numpy', '1.3', 'tutorial1')
-package_check('scipy', '0.7', 'tutorial1')
-package_check('networkx', '1.0', 'tutorial1')
-package_check('IPython', '0.10', 'tutorial1')
-
-"""Set any package specific configuration. The output file format
+Set any package specific configuration. The output file format
 for FSL routines is being set to uncompressed NIFTI and a specific
 version of matlab is being used. The uncompressed format is required
 because SPM does not handle compressed NIFTI.
 """
-
-# Tell fsl to generate all output in uncompressed nifti format
-print fsl.Info.version()
-fsl.FSLCommand.set_default_output_type('NIFTI')
 
 # Set the way matlab should be called
 mlab.MatlabCommand.set_default_matlab_cmd("matlab -nodesktop -nosplash")
@@ -122,6 +107,7 @@ using the following function:
 """
 
 def get_vox_dims(volume):
+    import nibabel as nb
     if isinstance(volume, list):
         volume = volume[0]
     nii = nb.load(volume)
@@ -159,7 +145,7 @@ l1analysis = pe.Workflow(name='analysis')
 :class:`nipype.interfaces.spm.SpecifyModel`.
 """
 
-modelspec = pe.Node(interface=model.SpecifyModel(), name= "modelspec")
+modelspec = pe.Node(interface=model.SpecifySPMModel(), name= "modelspec")
 
 """Generate a first level SPM.mat file for analysis
 :class:`nipype.interfaces.spm.Level1Design`.
@@ -346,6 +332,7 @@ modelspecref = l1pipeline.inputs.analysis.modelspec
 modelspecref.input_units             = 'scans'
 modelspecref.output_units            = 'scans'
 modelspecref.time_repetition         = TR
+modelspecref.high_pass_filter_cutoff = 120
 
 l1designref = l1pipeline.inputs.analysis.level1design
 l1designref.timing_units       = modelspecref.output_units
@@ -370,7 +357,7 @@ l1pipeline.inputs.analysis.threshold.contrast_index = 1
 Use derivative estimates in the non-parametric model
 """
 
-l1pipeline.inputs.analysis.contrastestimate.ignore_derivs = False
+l1pipeline.inputs.analysis.contrastestimate.use_derivs = True
 
 """
 Setting up parametricvariation of the model
@@ -402,7 +389,7 @@ paramanalysis = l1analysis.clone(name='paramanalysis')
 paramanalysis.inputs.level1design.bases = {'hrf':{'derivs': [0,0]}}
 paramanalysis.inputs.modelspec.subject_info = subjectinfo_param
 paramanalysis.inputs.contrastestimate.contrasts = paramcontrasts
-paramanalysis.inputs.contrastestimate.ignore_derivs = True
+paramanalysis.inputs.contrastestimate.use_derivs = False
 
 l1pipeline.connect([(preproc, paramanalysis, [('realign.realignment_parameters',
                                             'modelspec.realignment_parameters'),
@@ -465,6 +452,7 @@ datasink = pe.Node(interface=nio.DataSink(), name="datasink")
 datasink.inputs.base_directory = os.path.abspath('spm_auditory_tutorial/l1output')
 
 def getstripdir(subject_id):
+    import os
     return os.path.join(os.path.abspath('spm_auditory_tutorial/workingdir'),'_subject_id_%s' % subject_id)
 
 # store relevant outputs from various stages of the 1st level analysis
@@ -491,3 +479,4 @@ function needs to be called.
 if __name__ == '__main__':
     level1.run()
     level1.write_graph()
+

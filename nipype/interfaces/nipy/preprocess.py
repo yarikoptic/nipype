@@ -5,13 +5,12 @@ import numpy as np
 
 from nipype.utils.misc import package_check
 package_check('nipy')
-from nipy.neurospin.mask import compute_mask
+from nipy.labs.mask import compute_mask
 
-from nipype.interfaces.base import TraitedSpec, BaseInterface, traits
-from nipype.interfaces.traits import File
-from nipype.utils.misc import isdefined
+from nipype.interfaces.base import (TraitedSpec, BaseInterface, traits,
+                                    BaseInterfaceInputSpec, isdefined, File)
 
-class ComputeMaskInputSpec(TraitedSpec):
+class ComputeMaskInputSpec(BaseInterfaceInputSpec):
     mean_volume = File(exists=True, mandatory=True, desc="mean EPI image, used to compute the threshold for the mask")
     reference_volume = File(exists=True, desc="reference volume used to compute the mask. If none is give, the \
         mean volume is used.")
@@ -29,7 +28,7 @@ class ComputeMask(BaseInterface):
     def _run_interface(self, runtime):
         
         args = {}
-        for key,_ in self.inputs.items():
+        for key in [k for k,_ in self.inputs.items() if k not in BaseInterfaceInputSpec().trait_names()]:
             value = getattr(self.inputs, key)
             if isdefined(value):
                 if key in ['mean_volume', 'reference_volume']:
@@ -42,7 +41,6 @@ class ComputeMask(BaseInterface):
         self._brain_mask_path = os.path.abspath("brain_mask.nii")
         nb.save(nb.Nifti1Image(brain_mask.astype(np.uint8), nii.get_affine()), self._brain_mask_path)
         
-        runtime.returncode = 0
         return runtime
     
     def _list_outputs(self):

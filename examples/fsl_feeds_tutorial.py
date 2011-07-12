@@ -1,6 +1,10 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
+===========================================
+Using FSL for fMRI analysis with FEEDS data
+===========================================
+
 A pipeline example that data from the FSL FEEDS set. Single subject, two
 stimuli.
 
@@ -16,25 +20,11 @@ import nipype.interfaces.utility as util     # utility
 import nipype.pipeline.engine as pe          # pypeline engine
 import nipype.algorithms.modelgen as model   # model generation
 
-from nibabel import load
-
 
 """
 Preliminaries
 -------------
 
-Confirm package dependencies are installed.  (This is only for the tutorial,
-rarely would you put this in your own code.)
-"""
-
-from nipype.utils.misc import package_check
-
-package_check('numpy', '1.3', 'tutorial1')
-package_check('scipy', '0.7', 'tutorial1')
-package_check('networkx', '1.0', 'tutorial1')
-package_check('IPython', '0.10', 'tutorial1')
-
-"""
 Setup any package specific configuration. The output file format for FSL
 routines is being set to compressed NIFTI.
 """
@@ -104,6 +94,7 @@ Define a function to return the 1 based index of the middle volume
 """
 
 def getmiddlevolume(func):
+    from nibabel import load
     funcfile = func
     if isinstance(func, list):
         funcfile = func[0]
@@ -247,9 +238,12 @@ Define a function to get the brightness threshold for SUSAN
 def getbtthresh(medianvals):
     return [0.75*val for val in medianvals]
 
+def convert_th(x):
+    return [[tuple([val[0],0.75*val[1]])] for val in x]
+
 preproc.connect(maskfunc2, 'out_file', smooth, 'in_file')
 preproc.connect(medianval, ('out_stat', getbtthresh), smooth, 'brightness_threshold')
-preproc.connect(mergenode, ('out', lambda x: [[tuple([val[0],0.75*val[1]])] for val in x]), smooth, 'usans')
+preproc.connect(mergenode, ('out', convert_th), smooth, 'usans')
 
 """
 Mask the smoothed data with the dilated mask
@@ -330,7 +324,6 @@ Use :class:`nipype.algorithms.modelgen.SpecifyModel` to generate design informat
 """
 
 modelspec = pe.Node(interface=model.SpecifyModel(),  name="modelspec")
-modelspec.inputs.concatenate_runs = False
 
 """
 Use :class:`nipype.interfaces.fsl.Level1Design` to generate a run specific fsf
@@ -340,26 +333,12 @@ file for analysis
 level1design = pe.Node(interface=fsl.Level1Design(), name="level1design")
 
 """
-To allow changing working directories one needs to rerun the level1design as
-the fsf files are stored with absolute paths.
-"""
-level1design.overwrite = True
-
-"""
 Use :class:`nipype.interfaces.fsl.FEATModel` to generate a run specific mat
 file for use by FILMGLS
 """
 
 modelgen = pe.MapNode(interface=fsl.FEATModel(), name='modelgen',
-                      iterfield = ['fsf_file'])
-
-"""
-Set the model generation to run everytime. Since the fsf file, which is the
-input to modelgen only references the ev files, modelgen will not run if the ev
-file contents are changed but the fsf file is untouched.
-"""
-
-modelgen.overwrite = True
+                      iterfield = ['fsf_file', 'ev_files'])
 
 """
 Use :class:`nipype.interfaces.fsl.FILMGLS` to estimate a model specified by a
@@ -377,15 +356,21 @@ Use :class:`nipype.interfaces.fsl.ContrastMgr` to generate contrast estimates
 """
 
 conestimate = pe.MapNode(interface=fsl.ContrastMgr(), name='conestimate',
-                         iterfield = ['tcon_file','fcon_file','stats_dir'])
+                         iterfield = ['fcon_file', 'tcon_file','param_estimates',
+                                      'sigmasquareds', 'corrections',
+                                      'dof_file'])
 
 modelfit.connect([
    (modelspec,level1design,[('session_info','session_info')]),
-   (level1design,modelgen,[('fsf_files','fsf_file')]),
+   (level1design,modelgen,[('fsf_files','fsf_file'),
+                           ('ev_files', 'ev_files')]),
    (modelgen,modelestimate,[('design_file','design_file')]),
    (modelgen,conestimate,[('con_file','tcon_file')]),
    (modelgen,conestimate,[('fcon_file','fcon_file')]),
-   (modelestimate,conestimate,[('results_dir','stats_dir')]),
+   (modelestimate,conestimate,[('param_estimates','param_estimates'),
+                               ('sigmasquareds', 'sigmasquareds'),
+                               ('corrections','corrections'),
+                               ('dof_file','dof_file')]),
    ])
 
 """
@@ -509,7 +494,7 @@ for every participant. Other examples of this function are available in the
 from nipype.interfaces.base import Bunch
 
 firstlevel.inputs.modelfit.modelspec.subject_info = [Bunch(conditions=['Visual','Auditory'],
-                        onsets=[range(0,180*TR,60),range(0,180*TR,90)],
+                        onsets=[range(0,int(180*TR),60),range(0,int(180*TR),90)],
                         durations=[[30], [45]],
                         amplitudes=None,
                         tmod=None,
@@ -529,16 +514,17 @@ cont2 = ['Auditory>Baseline','T', ['Visual','Auditory'],[0,1]]
 cont3 = ['Task','F', [cont1, cont2]]
 contrasts = [cont1,cont2,cont3]
 
+model_serial_correlations = True
+
 firstlevel.inputs.modelfit.modelspec.input_units = 'secs'
-firstlevel.inputs.modelfit.modelspec.output_units = 'secs'
 firstlevel.inputs.modelfit.modelspec.time_repetition = TR
 firstlevel.inputs.modelfit.modelspec.high_pass_filter_cutoff = hpcutoff
-firstlevel.inputs.modelfit.modelspec.subject_id = 'whatever'
 
 
 firstlevel.inputs.modelfit.level1design.interscan_interval = TR
 firstlevel.inputs.modelfit.level1design.bases = {'dgamma':{'derivs': True}}
 firstlevel.inputs.modelfit.level1design.contrasts = contrasts
+firstlevel.inputs.modelfit.level1design.model_serial_correlations = model_serial_correlations
 
 """
 Set up complete workflow

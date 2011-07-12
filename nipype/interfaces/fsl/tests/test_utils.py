@@ -9,7 +9,7 @@ import numpy as np
 
 import nibabel as nb
 from nipype.testing import (assert_equal, assert_not_equal,
-                            assert_raises, parametric, skipif)
+                            assert_raises, skipif)
 import nipype.interfaces.fsl.utils as fsl
 from nipype.interfaces.fsl import no_fsl
 
@@ -91,7 +91,8 @@ def test_filterregressor():
                      args = dict(argstr='%s',),
                      design_file = dict(mandatory=True,),
                      environ = dict(),
-                     filter_out = dict(mandatory=True,),
+                     filter_columns = dict(mandatory=True,),
+                     filter_all = dict(mandatory=True,),
                      in_file = dict(mandatory=True,),
                      mask = dict(),
                      out_file = dict(),
@@ -355,3 +356,29 @@ def test_convertxfm():
         "convert_xfm -omat bar.mat -concat %s %s"%(filelist[1], filelist[0])
 
     clean_directory(outdir, cwd)
+
+@skipif(no_fsl)
+def test_swapdims():
+    files, testdir, origdir = create_files_in_directory()
+    swap = fsl.SwapDimensions()
+
+    # Test the underlying command
+    yield assert_equal, swap.cmd, "fslswapdim"
+
+    # Test mandatory args
+    args = [dict(in_file=files[0]), dict(new_dims=("x","y","z"))]
+    for arg in args:
+        wontrun = fsl.SwapDimensions(**arg)
+        yield assert_raises, ValueError, wontrun.run
+
+    # Now test a basic command line
+    swap.inputs.in_file = files[0]
+    swap.inputs.new_dims = ("x", "y", "z")
+    yield assert_equal, swap.cmdline, "fslswapdim a.nii x y z %s"%os.path.realpath(os.path.join(testdir, "a_newdims.nii"))
+
+    # Test that we can set an output name
+    swap.inputs.out_file = "b.nii"
+    yield assert_equal, swap.cmdline, "fslswapdim a.nii x y z b.nii"
+
+    # Clean up
+    clean_directory(testdir, origdir)

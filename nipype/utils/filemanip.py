@@ -12,7 +12,6 @@ import os
 import re
 import shutil
 
-from nipype.utils.misc import isdefined
 # The md5 module is deprecated in Python 2.6, but hashlib is only
 # available as an external package for versions of python before 2.6.
 # Both md5 algorithms appear to return the same result.
@@ -31,6 +30,7 @@ except ImportError:
 
 import numpy as np
 
+from nipype.interfaces.traits_extension import isdefined
 from nipype.utils.misc import is_container
 from nipype.utils.config import config
 
@@ -55,7 +55,7 @@ def split_filename(fname):
     fname : str
         filename from fname, without extension
     ext : str
-        file extenstion from fname
+        file extension from fname
 
     Examples
     --------
@@ -71,11 +71,11 @@ def split_filename(fname):
     '.nii.gz'
 
     """
-    
+
     special_extensions = [".nii.gz"]
 
     pth, fname = os.path.split(fname)
-    
+
     ext = None
     for special_ext in special_extensions:
         ext_len = len(special_ext)
@@ -94,7 +94,7 @@ def fname_presuffix(fname, prefix='', suffix='', newpath=None, use_ext=True):
     Parameters
     ----------
     fname : string
-        A filename (may or may not include path
+        A filename (may or may not include path)
     prefix : string
         Characters to prepend to the filename
     suffix : string
@@ -138,7 +138,7 @@ def hash_rename(filename, hash):
     path, name, ext = split_filename(filename)
     newfilename = ''.join((name,'_0x', hash, ext))
     return os.path.join(path, newfilename)
-             
+
 
 def check_forhash(filename):
     """checks if file has a hash in its filename"""
@@ -174,12 +174,11 @@ def hash_timestamp(afile):
         md5obj = md5()
         stat = os.stat(afile)
         md5obj.update(str(stat.st_size))
-        md5obj.update(str(stat.st_ctime))
         md5obj.update(str(stat.st_mtime))
         md5hex = md5obj.hexdigest()
     return md5hex
 
-def copyfile(originalfile, newfile, copy=False, create_new=False):
+def copyfile(originalfile, newfile, copy=False, create_new=False, hashmethod=None):
     """Copy or symlink ``originalfile`` to ``newfile``.
 
     Parameters
@@ -190,17 +189,17 @@ def copyfile(originalfile, newfile, copy=False, create_new=False):
         full path to new file
     copy : Bool
         specifies whether to copy or symlink files
-        (default=False) but only for posix systems
-         
+        (default=False) but only for POSIX systems
+
     Returns
     -------
     None
-    
+
     """
     newhash = None
     orighash = None
     fmlogger.debug(newfile)
-    
+
     if create_new:
         while os.path.exists(newfile):
             base, fname, ext = split_filename(newfile)
@@ -213,9 +212,11 @@ def copyfile(originalfile, newfile, copy=False, create_new=False):
                 fname += "_c%04d"%i
             newfile = base + os.sep + fname + ext
     elif os.path.exists(newfile):
-        if config.get('execution', 'hash_method').lower() == 'timestamp':
+        if hashmethod is None:
+            hashmethod = config.get('execution', 'hash_method').lower()
+        if hashmethod == 'timestamp':
             newhash = hash_timestamp(newfile)
-        elif config.get('execution', 'hash_method').lower() == 'content':
+        elif hashmethod == 'content':
             newhash = hash_infile(newfile)
         fmlogger.debug("File: %s already exists,%s, copy:%d" \
                            % (newfile, newhash, copy))
@@ -249,7 +250,7 @@ def copyfile(originalfile, newfile, copy=False, create_new=False):
             except shutil.Error, e:
                 fmlogger.warn(e.message)
         else:
-            fmlogger.debug("File: %s already exists, not overwritng, copy:%d" \
+            fmlogger.debug("File: %s already exists, not overwriting, copy:%d" \
                                % (newfile, copy))
     if originalfile.endswith(".img"):
         hdrofile = originalfile[:-4] + ".hdr"
@@ -259,7 +260,7 @@ def copyfile(originalfile, newfile, copy=False, create_new=False):
             matnfile = newfile[:-4] + ".mat"
             copyfile(matofile, matnfile, copy)
         copyfile(hdrofile, hdrnfile, copy)
-        
+
     return newfile
 
 def copyfiles(filelist, dest, copy=False, create_new=False):
@@ -272,21 +273,21 @@ def copyfiles(filelist, dest, copy=False, create_new=False):
     dest : path/files
         full path to destination. If it is a list of length greater
         than 1, then it assumes that these are the names of the new
-        files. 
+        files.
     copy : Bool
         specifies whether to copy or symlink files
         (default=False) but only for posix systems
-         
+
     Returns
     -------
     None
-    
+
     """
     outfiles = filename_to_list(dest)
     newfiles = []
     for i,f in enumerate(filename_to_list(filelist)):
         if isinstance(f, list):
-            newfiles.insert(i, copyfiles(f, dest, copy=copy))
+            newfiles.insert(i, copyfiles(f, dest, copy=copy, create_new=create_new))
         else:
             if len(outfiles) > 1:
                 destfile = outfiles[i]
@@ -309,7 +310,7 @@ def filename_to_list(filename):
         return None
 
 def list_to_filename(filelist):
-    """Returns a list if filelist is a list of length greater than 1, 
+    """Returns a list if filelist is a list of length greater than 1,
        otherwise returns the first element
     """
     if len(filelist) > 1:
@@ -323,10 +324,10 @@ def cleandir(dir):
     for ftype in filetypes:
         for f in glob(os.path.join(dir,ftype)):
             os.remove(f)
-        
+
 def save_json(filename, data):
     """Save data to a json file
-    
+
     Parameters
     ----------
     filename : str
@@ -356,7 +357,7 @@ def load_json(filename):
     Returns
     -------
     data : dict
-   
+
     """
 
     fp = file(filename, 'r')
@@ -397,7 +398,24 @@ def savepkl(filename, record):
         pkl_file = gzip.open(filename, 'wb')
     else:
         pkl_file = open(filename, 'wb')
-    cPickle.dump(result, pkl_file)
+    cPickle.dump(record, pkl_file)
     pkl_file.close()
-    
+
+rst_levels = ['=', '-', '~', '+']
+
+def write_rst_header(header, level=0):
+    return '\n'.join((header, ''.join([rst_levels[level] for _ in header])))+'\n\n'
+
+def write_rst_list(items, prefix=''):
+    out = []
+    for item in items:
+        out.append(prefix + ' ' + str(item))
+    return '\n'.join(out)+'\n\n'
+
+def write_rst_dict(info, prefix=''):
+    out = []
+    for key, value in sorted(info.items()):
+        out.append(prefix + '* ' + key + ' : ' + str(value))
+    return '\n'.join(out)+'\n\n'
+        
 

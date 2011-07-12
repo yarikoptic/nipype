@@ -7,7 +7,8 @@ was written to work with FSL version 4.1.4.
 Top-level namespace for fsl.  Perhaps should just make fsl a package!
 """
 
-from nipype.interfaces.fsl.base import FSLCommand, Info, check_fsl, no_fsl
+from nipype.interfaces.fsl.base import (FSLCommand, Info, check_fsl, no_fsl,
+                                        no_fsl_course_data)
 from nipype.interfaces.fsl.preprocess import (FAST, FLIRT, ApplyXfm,
                                               BET, MCFLIRT, FNIRT, ApplyWarp,
                                               SliceTimer, SUSAN,
@@ -17,16 +18,21 @@ from nipype.interfaces.fsl.model import (Level1Design, FEAT, FEATModel,
                                          FLAMEO, ContrastMgr,
                                          MultipleRegressDesign,
                                          L2Model, SMM, MELODIC,
-                                         SmoothEstimate, Cluster)
+                                         SmoothEstimate, Cluster, Randomise)
 from nipype.interfaces.fsl.utils import (Smooth, Merge, ExtractROI, Split,
                                          ImageMaths, ImageMeants, ImageStats,
                                          FilterRegressor, Overlay, Slicer,
                                          PlotTimeSeries, PlotMotionParams,
-                                         ConvertXFM)
+                                         ConvertXFM, SwapDimensions, PowerSpectrum)
 from nipype.interfaces.fsl.dti import (EddyCorrect, BEDPOSTX, DTIFit, 
                                        ProbTrackX, VecReg, ProjThresh,
-                                       FindTheBiggest)
-
+                                       FindTheBiggest, DistanceMap,
+                                       TractSkeleton, XFibres, 
+                                       MakeDyadicVectors)
+from nipype.interfaces.fsl.maths import (ChangeDataType, Threshold, MeanImage, 
+                                         ApplyMask, IsotropicSmooth, TemporalFilter,
+                                         DilateImage, ErodeImage, SpatialFilter,
+                                         UnaryMaths, BinaryMaths, MultiImageMaths)
 
 import nose
 

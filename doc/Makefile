@@ -34,7 +34,7 @@ htmlonly:
 	@echo
 	@echo "Build finished. The HTML pages are in _build/html."
 
-api:    
+api:
 	rm -rf api/generated
 	#python ../tools/build_modref_templates.py
 	rm -rf interfaces/generated
@@ -47,7 +47,7 @@ html: examples2rst api htmlonly
 examples2rst:
 	python ../tools/ex2rst \
 			--project Nipype \
-			--outdir $(CURDIR)/examples \
+			--outdir $(CURDIR)/users/examples \
 			../examples/freesurfer_tutorial.py \
 			../examples/fsl_tutorial2.py \
 			../examples/fsl_feeds_tutorial.py \
@@ -55,9 +55,14 @@ examples2rst:
 			../examples/spm_face_tutorial.py \
 			../examples/spm_auditory_tutorial.py \
 			../examples/fsl_dti_tutorial.py \
+			../examples/camino_dti_tutorial.py \
+			../examples/connectivity_tutorial.py \
+			../examples/dtk_dti_tutorial.py \
+			../examples/dtk_odf_tutorial.py \
 			../examples/spm_tutorial2.py \
+			../examples/spm_dartel_tutorial.py \
 			../examples/dartmouth_workshop_2010.py \
-			../examples/nipy_tutorial.py 
+			../examples/nipy_tutorial.py
 	@echo "examples2rst finished."
 
 latex: api
@@ -87,6 +92,14 @@ doctest:
 	@echo "Testing of doctests in the sources finished, look at the " \
 	      "results in _build/doctest/output.txt."
 
+gitwash-update:
+	python ../tools/gitwash_dumper.py devel nipype \
+            --repo-name=nipype \
+            --github-user=nipy \
+            --project-url=http://nipy.org/nipype \
+            --project-ml-url=http://mail.scipy.org/mailman/listinfo/nipy-devel
+	@echo "gitwash updated"
+
 # Sourceforge doesn't appear to have a way of copying the files
 # without specifying a username.  So we'll probably have one target
 # for each project admin
@@ -101,7 +114,7 @@ sf_satra_nightly: html
 sf_satra: html
 	@echo "Copying html files to sourceforge..."
 	rsync -auv _build/html/. satra,nipy@web.sourceforge.net:htdocs/nipype/.
-	
+
 sf_filo: html
 	@echo "Copying html files to sourceforge..."
 	rsync -auv _build/html/. gorgolewski,nipy@web.sourceforge.net:htdocs/nipype/.

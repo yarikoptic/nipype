@@ -1,6 +1,10 @@
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """
+========================================
+Using SPM for analysis: Auditory dataset
+========================================
+
 Introduction
 ============
 
@@ -9,10 +13,7 @@ using auditory dataset that can be downloaded from http://www.fil.ion.ucl.ac.uk/
 
     python spm_auditory_tutorial.py
 
-"""
-
-
-"""Import necessary modules from nipype."""
+Import necessary modules from nipype."""
 
 import nipype.interfaces.io as nio           # Data i/o
 import nipype.interfaces.spm as spm          # spm
@@ -21,7 +22,6 @@ import nipype.interfaces.matlab as mlab      # how to run matlabimport nipype.in
 import nipype.interfaces.utility as util     # utility
 import nipype.pipeline.engine as pe          # pypeline engine
 import nipype.algorithms.modelgen as model   # model specification
-import nibabel as nb
 import os                                    # system functions
 
 """
@@ -29,17 +29,7 @@ import os                                    # system functions
 Preliminaries
 -------------
 
-Confirm package dependencies are installed.  (This is only for the
-tutorial, rarely would you put this in your own code.)
 """
-
-from nipype.utils.misc import package_check
-
-package_check('numpy', '1.3', 'tutorial1')
-package_check('scipy', '0.7', 'tutorial1')
-package_check('networkx', '1.0', 'tutorial1')
-package_check('IPython', '0.10', 'tutorial1')
-
 
 # Set the way matlab should be called
 mlab.MatlabCommand.set_default_matlab_cmd("matlab -nodesktop -nosplash")
@@ -124,6 +114,7 @@ using the following function:
 """
 
 def get_vox_dims(volume):
+    import nibabel as nb
     if isinstance(volume, list):
         volume = volume[0]
     nii = nb.load(volume)
@@ -163,7 +154,7 @@ l1analysis = pe.Workflow(name='analysis')
 :class:`nipype.interfaces.spm.SpecifyModel`.
 """
 
-modelspec = pe.Node(interface=model.SpecifyModel(), name= "modelspec")
+modelspec = pe.Node(interface=model.SpecifySPMModel(), name= "modelspec")
 
 """Generate a first level SPM.mat file for analysis
 :class:`nipype.interfaces.spm.Level1Design`.
@@ -289,12 +280,7 @@ necessary to generate an SPM design matrix.
 from nipype.interfaces.base import Bunch
 subjectinfo = [Bunch(conditions=['Task'],
                             onsets=[range(6,84,12)],
-                            durations=[[6]],
-                            amplitudes=None,
-                            tmod=None,
-                            pmod=None,
-                            regressor_names=None,
-                            regressors=None)]
+                            durations=[[6]])]
 
 """Setup the contrast structure that needs to be evaluated. This is a
 list of lists. The inner list specifies the contrasts and has the
@@ -311,6 +297,7 @@ modelspecref = l1pipeline.inputs.analysis.modelspec
 modelspecref.input_units             = 'scans'
 modelspecref.output_units            = 'scans'
 modelspecref.time_repetition         = 7
+modelspecref.high_pass_filter_cutoff = 120
 
 l1designref = l1pipeline.inputs.analysis.level1design
 l1designref.timing_units       = modelspecref.output_units
@@ -380,6 +367,7 @@ datasink = pe.Node(interface=nio.DataSink(), name="datasink")
 datasink.inputs.base_directory = os.path.abspath('spm_auditory_tutorial/l1output')
 
 def getstripdir(subject_id):
+    import os
     return os.path.join(os.path.abspath('spm_auditory_tutorial/workingdir'),'_subject_id_%s' % subject_id)
 
 # store relevant outputs from various stages of the 1st level analysis
@@ -404,3 +392,4 @@ function needs to be called.
 if __name__ == '__main__':
     level1.run()
     level1.write_graph()
+
