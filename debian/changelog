@@ -1,3 +1,10 @@
+nipype (0.4.0-1) unstable; urgency=low
+
+  * Fresh upstream release
+  * debian/source -- now 3.0 (quilt) format
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 11 Jul 2011 21:28:29 -0400
+
 nipype (0.3.4-1) experimental; urgency=low
 
   * Added graphviz into recommends since 'dot' is also used directly by
