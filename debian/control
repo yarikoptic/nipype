@@ -14,8 +14,8 @@ Build-Depends: cdbs, debhelper (>= 7), python-support (>= 0.6), python (>= 2.4),
 Build-Conflicts: python-networkx (<=1.0~rc1~)
 Standards-Version: 3.9.2
 Homepage: http://nipy.sourceforge.net/nipype/
-XS-Vcs-Git: git://git.debian.org/git/pkg-exppsy/nipype.git
-XS-Vcs-Browser: http://git.debian.org/?p=pkg-exppsy/nipype.git
+Vcs-Git: git://git.debian.org/git/pkg-exppsy/nipype.git
+Vcs-Browser: http://git.debian.org/?p=pkg-exppsy/nipype.git
 
 
 Package: python-nipype
