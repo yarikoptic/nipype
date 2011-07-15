@@ -16,11 +16,15 @@ nipype (0.4-1) unstable; urgency=low
     - up_some_no_fsl_skips
     - up_donot_fail_if_no_matlab
     - up_reset_results_when_crash
+    - up_pipeline_clean_up_result_creation
   * introduced deb_tollerate_exceptions_while_docbuilding to avoid
     failures to build portions of documentation dependent on absent
     externals (e.g. FSL)
+  * *Depends on backported python-traits4 as an alternative to
+    python-traits >= 4.0
+  * Assure no executable .csv files
 
- -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 11 Jul 2011 21:28:29 -0400
+ -- Yaroslav Halchenko <debian@onerussian.com>  Fri, 15 Jul 2011 10:40:26 -0400
 
 nipype (0.3.4-1) neurodebian; urgency=low
 

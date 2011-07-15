@@ -33,6 +33,8 @@ ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
      MPLCONFIGDIR=$(CURDIR)/build \
 	  nosetests -v nipype -e test_spm_path
 endif
+	: # no executable spreadsheets
+	find debian -iname *csv -print0 | xargs -r -0 chmod a-x
 
 # use jquery from Debian package
 # symlinked by debhelper
