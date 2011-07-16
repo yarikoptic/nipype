@@ -1,3 +1,10 @@
+nipype (0.4.1-1) unstable; urgency=low
+
+  * Fresh upstream bugrelease -- all up_* patches absorbed/dropped from the
+    quilt queue
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Sat, 16 Jul 2011 17:43:23 -0400
+
 nipype (0.4-1) unstable; urgency=low
 
   * Fresh upstream release
