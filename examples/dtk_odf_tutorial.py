@@ -1,21 +1,28 @@
-
 """
-A pipeline example that uses several interfaces to
-perform analysis on diffusion weighted images using
-Diffusion Toolkit and FSL.
+========================================
+Using Diffusion Toolkit for ODF analysis
+========================================
 
-This tutorial uses data from out nipype-tutorial package. 
-"""
+A pipeline example that uses several interfaces to perform analysis on
+diffusion weighted images using Diffusion Toolkit tools.
 
+This tutorial is based on the 2010 FSL course and uses data freely available at
+the FSL website at: http://www.fmrib.ox.ac.uk/fslcourse/fsl_course_data2.tar.gz
 
-"""
+More details can be found at
+http://www.fmrib.ox.ac.uk/fslcourse/lectures/practicals/fdt/index.htm
+
+In order to run this tutorial you need to have Diffusion Toolkit and FSL tools installed and
+accessible from matlab/command line. Check by calling fslinfo and dtk from the command
+line.
+
 Tell python where to find the appropriate functions.
 """
 
 import nipype.interfaces.io as nio           # Data i/o
 import nipype.interfaces.fsl as fsl          # fsl
 import nipype.workflows.fsl as fsl_wf          # fsl
-import nipype.interfaces.diffusion_toolkit as dtk 
+import nipype.interfaces.diffusion_toolkit as dtk
 import nipype.interfaces.utility as util     # utility
 import nipype.pipeline.engine as pe          # pypeline engine
 import os                                    # system functions
@@ -37,9 +44,8 @@ package_check('IPython', '0.10', 'tutorial1')
 Setting up workflows
 --------------------
 This is a generic workflow for DTI data analysis using the FSL
-"""
 
-"""
+
 Data specific components
 ------------------------
 
@@ -96,7 +102,7 @@ datasource = pe.Node(interface=nio.DataGrabber(infields=['subject_id'],
 
 datasource.inputs.template = "%s/%s"
 
-# This needs to point to the fdt folder you can find after extracting 
+# This needs to point to the fdt folder you can find after extracting
 # http://www.fmrib.ox.ac.uk/fslcourse/fsl_course_data2.tar.gz
 datasource.inputs.base_directory = os.path.abspath('data')
 

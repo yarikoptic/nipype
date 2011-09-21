@@ -21,6 +21,7 @@ from nipype.interfaces.base import Undefined
 
 # nosetests --with-doctest path_to/test_fsl.py
 
+@skipif(no_fsl)
 def test_bedpostx1():
     input_map = dict(args = dict(argstr='%s',),
                      bpx_directory = dict(argstr='%s',),
@@ -41,6 +42,7 @@ def test_bedpostx1():
         for metakey, value in metadata.items():
             yield assert_equal, getattr(instance.inputs.traits()[key], metakey), value
 
+@skipif(no_fsl)
 def test_dtifit1():
     input_map = dict(args = dict(argstr='%s',),
                      base_name = dict(argstr='-o %s',),
@@ -154,99 +156,6 @@ def test_projthresh():
         for metakey, value in metadata.items():
             yield assert_equal, getattr(instance.inputs.traits()[key], metakey), value
 
-def test_randomise1():
-    input_map = dict(args = dict(argstr='%s',),
-                     base_name = dict(argstr='-o %s',),
-                     c_thresh = dict(argstr='-c %.2f',),
-                     cm_thresh = dict(argstr='-C %.2f',),
-                     demean = dict(argstr='-D',),
-                     design_mat = dict(argstr='-d %s',mandatory=True,),
-                     environ = dict(),
-                     f_c_thresh = dict(argstr='-F %.2f',),
-                     f_cm_thresh = dict(argstr='-S %.2f',),
-                     f_only = dict(argstr='--f_only',),
-                     fcon = dict(argstr='-f %s',),
-                     in_file = dict(argstr='-i %s',mandatory=True,),
-                     mask = dict(argstr='-m %s',),
-                     num_perm = dict(argstr='-n %d',),
-                     one_sample_group_mean = dict(argstr='-l',),
-                     output_type = dict(),
-                     p_vec_n_dist_files = dict(argstr='-P',),
-                     raw_stats_imgs = dict(argstr='-R',),
-                     seed = dict(argstr='--seed %d',),
-                     show_info_parallel_mode = dict(argstr='-Q',),
-                     show_total_perms = dict(argstr='-q',),
-                     tcon = dict(argstr='-t %s',mandatory=True,),
-                     tfce = dict(argstr='-T',),
-                     tfce2D = dict(argstr='--T2',),
-                     tfce_C = dict(argstr='--tfce_C %.2f',),
-                     tfce_E = dict(argstr='--tfce_E %.2f',),
-                     tfce_H = dict(argstr='--tfce_H %.2f',),
-                     var_smooth = dict(argstr='-v %d',),
-                     vox_p_values = dict(argstr='-x',),
-                     vxf = dict(argstr='--vxf %d',),
-                     vxl = dict(argstr='--vxl %d',),
-                     x_block_labels = dict(argstr='-e %s',),
-                     )
-    instance = fsl.Randomise()
-    for key, metadata in input_map.items():
-        for metakey, value in metadata.items():
-            yield assert_equal, getattr(instance.inputs.traits()[key], metakey), value
-
-@skipif(no_fsl)
-def test_tbss1preproc():
-    input_map = dict(args = dict(argstr='%s',),
-                     environ = dict(),
-                     img_list = dict(mandatory=True,),
-                     output_type = dict(),
-                     )
-    instance = fsl.TBSS1Preproc()
-    for key, metadata in input_map.items():
-        for metakey, value in metadata.items():
-            yield assert_equal, getattr(instance.inputs.traits()[key], metakey), value
-
-@skipif(no_fsl)
-def test_tbss2reg():
-    input_map = dict(FMRIB58FA = dict(argstr='-T',xor=('FMRIB58FA', 'target_img', 'find_target'),),
-                     args = dict(argstr='%s',),
-                     environ = dict(),
-                     find_target = dict(argstr='-n',xor=('FMRIB58FA', 'target_img', 'find_target'),),
-                     output_type = dict(),
-                     target_img = dict(argstr='-t %s',xor=('FMRIB58FA', 'target_img', 'find_target'),),
-                     tbss_dir = dict(mandatory=True,),
-                     )
-    instance = fsl.TBSS2Reg()
-    for key, metadata in input_map.items():
-        for metakey, value in metadata.items():
-            yield assert_equal, getattr(instance.inputs.traits()[key], metakey), value
-
-@skipif(no_fsl)
-def test_tbss3postreg():
-    input_map = dict(FMRIB58FA = dict(argstr='-T',xor=('subject_mean', 'FMRIB58FA'),),
-                     args = dict(argstr='%s',),
-                     environ = dict(),
-                     output_type = dict(),
-                     subject_mean = dict(argstr='-S',xor=('subject_mean', 'FMRIB58FA'),),
-                     tbss_dir = dict(mandatory=True,),
-                     )
-    instance = fsl.TBSS3Postreg()
-    for key, metadata in input_map.items():
-        for metakey, value in metadata.items():
-            yield assert_equal, getattr(instance.inputs.traits()[key], metakey), value
-
-@skipif(no_fsl)
-def test_tbss4prestats():
-    input_map = dict(args = dict(argstr='%s',),
-                     environ = dict(),
-                     output_type = dict(),
-                     tbss_dir = dict(mandatory=True,),
-                     threshold = dict(mandatory=True,argstr='%.3f',),
-                     )
-    instance = fsl.TBSS4Prestats()
-    for key, metadata in input_map.items():
-        for metakey, value in metadata.items():
-            yield assert_equal, getattr(instance.inputs.traits()[key], metakey), value
-
 @skipif(no_fsl)
 def test_vecreg():
     input_map = dict(affine_mat = dict(argstr='-t %s',),
@@ -287,7 +196,7 @@ def create_files_in_directory():
         nb.save(nb.Nifti1Image(img,np.eye(4),hdr),
                  os.path.join(outdir,f))
     return filelist, outdir, cwd
-    
+
 def clean_directory(outdir, old_wd):
     if os.path.exists(outdir):
         rmtree(outdir)
@@ -295,6 +204,7 @@ def clean_directory(outdir, old_wd):
 
 
 # test bedpostx
+@skipif(no_fsl)
 def test_bedpostx2():
     filelist, outdir, cwd = create_files_in_directory()
     bpx = fsl.BEDPOSTX()
@@ -322,7 +232,7 @@ def test_bedpostx2():
     yield assert_equal, actualCmdline, desiredCmdline
 
 
- 
+
 # test eddy_correct
 @skipif(no_fsl)
 def test_eddy_correct2():
@@ -401,115 +311,6 @@ def teardown_tbss():
     os.chdir(test_dir)
     shutil.rmtree(tbss_dir)
 
-@skipif(skip_dti_tests)
-@with_setup(setup_tbss, teardown_tbss)
-def test_tbss_1_preproc():
-    tbss1 = fsl.TBSS1Preproc()
-
-    # make sure command gets called
-    yield assert_equal, tbss1.cmd, 'tbss_1_preproc'
-
-    # test raising error with mandatory args absent
-    yield assert_raises, ValueError, tbss1.run
-
-    # .inputs based parameters setting
-    tbss1.inputs.img_list = tbss_files
-    yield assert_equal, tbss1.cmdline, \
-        'tbss_1_preproc %s %s'%(tbss_files[0],tbss_files[1])
-
-    # test arguments for opt_map
-    # Tbss_1_preproc class doesn't have opt_map{}
-
-@skipif(skip_dti_tests)
-@with_setup(setup_tbss, teardown_tbss)
-def test_tbss_2_reg():
-    tbss2 = fsl.TBSS2Reg()
-
-    # make sure command gets called
-    yield assert_equal, tbss2.cmd, 'tbss_2_reg'
-
-    # test raising error with mandatory args absent
-    yield assert_raises, ValueError, tbss2.run
-
-    # .inputs based parameters setting
-    tbss2.inputs.FMRIB58_FA_1mm = True
-    yield assert_equal, tbss2.cmdline, 'tbss_2_reg -T'
-
-    # .run based parameter setting
-    tbss22 = fsl.TBSS2Reg(targetImage='targetImg')
-    yield assert_equal, tbss22.cmdline, 'tbss_2_reg -t targetImg'
-
-    tbss222 = fsl.TBSS2Reg(findTarget=True)
-    yield assert_equal, tbss222.cmdline, 'tbss_2_reg -n'
-
-    tbss21 = fsl.TBSS2Reg()
-    results = tbss21.run(FMRIB58_FA_1mm=True, noseTest=True)
-    yield assert_equal, results.runtime.cmdline, 'tbss_2_reg -T'
-
-    # test arguments for opt_map
-    opt_map = { 'FMRIB58_FA_1mm':    ('-T', True),
-               'targetImage':       ('-t allimgs', 'allimgs'),
-               'findTarget':        ('-n', True)}
-
-    for name, settings in opt_map.items():
-        tbss = fsl.TBSS2Reg(**{name: settings[1]})
-        yield assert_equal, tbss.cmdline, tbss.cmd + ' ' + settings[0]
-
-@skipif(skip_dti_tests)
-@with_setup(setup_tbss, teardown_tbss)
-def test_tbss_3_postreg():
-    tbss = fsl.TBSS3Postreg()
-
-    # make sure command gets called
-    yield assert_equal, tbss.cmd, 'tbss_3_postreg'
-
-    # test raising error with mandatory args absent
-    yield assert_raises, ValueError, tbss.run
-
-    # .inputs based parameters setting
-    tbss.inputs.FMRIB58_FA = True
-    yield assert_equal, tbss.cmdline, 'tbss_3_postreg -T'
-
-    # .run based parameter setting
-    tbss2 = fsl.TBSS3Postreg(subject_means=True)
-    yield assert_equal, tbss2.cmdline, 'tbss_3_postreg -S'
-
-    tbss3 = fsl.TBSS3Postreg()
-    results = tbss3.run(FMRIB58_FA=True, noseTest=True)
-    yield assert_equal, results.runtime.cmdline, 'tbss_3_postreg -T'
-
-    # test arguments for opt_map
-    opt_map = { 'subject_means':     ('-S', True),
-               'FMRIB58_FA':        ('-T', True)}
-
-    for name, settings in opt_map.items():
-        tbss3 = fsl.TBSS3Postreg(**{name: settings[1]})
-        yield assert_equal, tbss3.cmdline, tbss3.cmd + ' ' + settings[0]
-
-@skipif(skip_dti_tests)
-@with_setup(setup_tbss, teardown_tbss)
-def test_tbss_4_prestats():
-    tbss = fsl.TBSS4Prestats()
-
-    # make sure command gets called
-    yield assert_equal, tbss.cmd, 'tbss_4_prestats'
-
-    # test raising error with mandatory args absent
-    yield assert_raises, ValueError, tbss.run
-
-    # .inputs based parameters setting
-    tbss.inputs.threshold = 0.3
-    yield assert_equal, tbss.cmdline, 'tbss_4_prestats 0.3'
-
-    tbss2 = fsl.TBSS4Prestats(threshold=0.4)
-    yield assert_equal, tbss2.cmdline, 'tbss_4_prestats 0.4'
-
-    tbss3 = fsl.TBSS4Prestats()
-    results = tbss3.run(threshold=0.2, noseTest=True)
-    yield assert_equal, results.runtime.cmdline, 'tbss_4_prestats 0.2'
-
-    # test arguments for opt_map
-    # TBSS4Prestats doesn't have an opt_map{}
 
 @skipif(skip_dti_tests)
 def test_randomise2():
@@ -588,7 +389,7 @@ def test_randomise2():
                                                      '6,7,8,9,3')}
 
     for name, settings in opt_map.items():
-        rand4 = fsl.Randomise(input_4D='infile', output_rootname='root', 
+        rand4 = fsl.Randomise(input_4D='infile', output_rootname='root',
                               **{name: settings[1]})
         yield assert_equal, rand4.cmdline, rand4.cmd + ' -i infile -o root ' \
             + settings[0]
@@ -664,15 +465,15 @@ def test_Randomise_parallel():
               'TFCE_extent_param':                  ('--tfce_E 0.50', 0.50),
               'TFCE_connectivity':                  ('--tfce_C 0.30', 0.30),
               'list_num_voxel_EVs_pos':             ('--vxl ' \
-                                                         + repr([1, 2, 3, 4]), 
+                                                         + repr([1, 2, 3, 4]),
                                                      repr([1, 2, 3, 4])),
               'list_img_voxel_EVs':               ('--vxf ' \
-                                                       + repr([6, 7, 8, 9, 3]), 
+                                                       + repr([6, 7, 8, 9, 3]),
                                                      repr([6, 7, 8, 9, 3]))}
 
     for name, settings in opt_map.items():
-        rand4 = fsl.Randomise_parallel(input_4D='infile', 
-                                       output_rootname='root', 
+        rand4 = fsl.Randomise_parallel(input_4D='infile',
+                                       output_rootname='root',
                                        **{name: settings[1]})
         yield assert_equal, rand4.cmdline, rand4.cmd + ' -i infile -o root ' \
             + settings[0]
@@ -728,7 +529,7 @@ def test_Proj_thresh():
     yield assert_equal, results.interface.inputs.threshold, 2
 
     # test arguments for opt_map
-    # Proj_thresh doesn't have an opt_map{}    
+    # Proj_thresh doesn't have an opt_map{}
 
 
 # test vec_reg
@@ -787,7 +588,7 @@ def test_Vec_reg():
                'brainMask':         ('-m mask', 'mask')}
 
     for name, settings in opt_map.items():
-        vrg4 = fsl.VecReg(infile='infile', outfile='outfile', 
+        vrg4 = fsl.VecReg(infile='infile', outfile='outfile',
                           refVolName='MNI152', **{name: settings[1]})
         yield assert_equal, vrg4.cmdline, vrg4.cmd + \
             ' -i infile -o outfile -r MNI152 ' + settings[0]
@@ -826,7 +627,7 @@ def test_tbss_skeleton():
     skeletor = fsl.TractSkeleton()
 
     files, newdir, olddir = create_files_in_directory()
-    
+
     # Test the underlying command
     yield assert_equal, skeletor.cmd, "tbss_skeleton"
 
@@ -847,7 +648,7 @@ def test_tbss_skeleton():
 
     # Now test the more complicated usage
     bones = fsl.TractSkeleton(in_file="a.nii", project_data=True)
-    
+
     # This should error
     yield assert_raises, ValueError, bones.run
 
@@ -855,7 +656,7 @@ def test_tbss_skeleton():
     bones.inputs.threshold = 0.2
     bones.inputs.distance_map = "b.nii"
     bones.inputs.data_file = "b.nii" # Even though that's silly
-    
+
     # Now we get a command line
     yield assert_equal, bones.cmdline, \
     "tbss_skeleton -i a.nii -p 0.200 b.nii %s b.nii %s"%(Info.standard_image("LowerCingulum_1mm.nii.gz"),

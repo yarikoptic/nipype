@@ -27,7 +27,7 @@ def create_files_in_directory():
         nb.save(nb.Nifti1Image(img,np.eye(4),hdr),
                  os.path.join(outdir,f))
     return filelist, outdir, cwd
-    
+
 def clean_directory(outdir, old_wd):
     if os.path.exists(outdir):
         rmtree(outdir)
@@ -91,7 +91,8 @@ def test_filterregressor():
                      args = dict(argstr='%s',),
                      design_file = dict(mandatory=True,),
                      environ = dict(),
-                     filter_out = dict(mandatory=True,),
+                     filter_columns = dict(mandatory=True,),
+                     filter_all = dict(mandatory=True,),
                      in_file = dict(mandatory=True,),
                      mask = dict(),
                      out_file = dict(),
@@ -134,7 +135,7 @@ def no_fsl():
     """Checks if FSL is NOT installed
     used with skipif to skip tests that will
     fail if FSL is not installed"""
-    
+
     if fsl.Info().version() == None:
         return True
     else:
@@ -143,7 +144,7 @@ def no_fsl():
 @skipif(no_fsl)
 def test_fslroi():
     filelist, outdir, cwd = create_files_in_directory()
-    
+
     roi = fsl.ExtractROI()
 
     # make sure command gets called
@@ -264,7 +265,7 @@ def test_slicer():
     clean_directory(outdir, cwd)
 
 def create_parfiles():
-    
+
     np.savetxt('a.par',np.random.rand(6,3))
     np.savetxt('b.par',np.random.rand(6,3))
     return ['a.par', 'b.par']

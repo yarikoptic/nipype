@@ -9,8 +9,6 @@ from distutils.version import LooseVersion
 import numpy as np
 from textwrap import dedent
 
-from nipype.interfaces.traits import _Undefined
-
 def getsource(function):
     """Returns the source code of a function"""
     src = dumps(dedent(inspect.getsource(function)))
@@ -34,9 +32,6 @@ def create_function_from_source(function_source):
     func = ns[funcname]
     return func
 
-def isdefined(object):
-    return not isinstance(object, _Undefined)
-
 def find_indices(condition):
    "Return the indices where ravel(condition) is true"
    res, = np.nonzero(np.ravel(condition))
@@ -44,12 +39,12 @@ def find_indices(condition):
 
 def is_container(item):
    """Checks if item is a container (list, tuple, dict, set)
-   
+
    Parameters
    ----------
-   item : object 
+   item : object
        object to check for .__iter__
-      
+
    Returns
    -------
    output : Boolean
@@ -60,10 +55,10 @@ def is_container(item):
       return True
    else:
       return False
-      
+
 def container_to_string(cont):
    """Convert a container to a command line string.
-   
+
    Elements of the container are joined with a space between them,
    suitable for a command line parameter.
 
@@ -138,3 +133,13 @@ def package_check(pkg_name, version=None, app=None, checker=LooseVersion,
     if checker(have_version) < checker(version):
         raise exc_failed_check(msg)
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    lower = v.lower()
+    if lower in ("yes", "true", "t", "1"):
+        return True
+    elif lower in ("no", "false", "n", "0"):
+        return False
+    else:
+        raise ValueError("%s cannot be converted to bool"%v)

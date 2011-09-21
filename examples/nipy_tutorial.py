@@ -6,7 +6,7 @@ Using SPM and nipy for fMRI analysis
 ====================================
 
 
-The nipy_tutorial.py integrates several interfaces to perform a first level 
+The nipy_tutorial.py integrates several interfaces to perform a first level
 analysis on a two-subject data set. It is very similar to the spm_tutorial with
 the difference of using nipy for fitting GLM model and estimating contrasts.
 The tutorial can
@@ -25,7 +25,6 @@ from nipype.interfaces.nipy.preprocess import ComputeMask
 import nipype.interfaces.io as nio           # Data i/o
 import nipype.interfaces.spm as spm          # spm
 import nipype.interfaces.matlab as mlab      # how to run matlab
-import nipype.interfaces.fsl as fsl          # fsl
 import nipype.interfaces.utility as util     # utility
 import nipype.pipeline.engine as pe          # pypeline engine
 import nipype.algorithms.rapidart as ra      # artifact detection
@@ -37,26 +36,11 @@ import os                                    # system functions
 Preliminaries
 -------------
 
-Confirm package dependencies are installed.  (This is only for the
-tutorial, rarely would you put this in your own code.)
-"""
-
-from nipype.utils.misc import package_check
-
-package_check('numpy', '1.3', 'tutorial1')
-package_check('scipy', '0.7', 'tutorial1')
-package_check('networkx', '1.0', 'tutorial1')
-package_check('IPython', '0.10', 'tutorial1')
-
-"""Set any package specific configuration. The output file format
+Set any package specific configuration. The output file format
 for FSL routines is being set to uncompressed NIFTI and a specific
 version of matlab is being used. The uncompressed format is required
 because SPM does not handle compressed NIFTI.
 """
-
-# Tell fsl to generate all output in uncompressed nifti format
-#print fsl.Info.version()
-fsl.FSLCommand.set_default_output_type('NIFTI')
 
 # Set the way matlab should be called
 mlab.MatlabCommand.set_default_matlab_cmd("matlab -nodesktop -nosplash")
@@ -134,9 +118,9 @@ intensity or movement.
 """
 
 art = pe.Node(interface=ra.ArtifactDetect(), name="art")
-art.inputs.use_differences      = [True,True]
+art.inputs.use_differences      = [True, False]
 art.inputs.use_norm             = True
-art.inputs.norm_threshold       = 0.5
+art.inputs.norm_threshold       = 1
 art.inputs.zintensity_threshold = 3
 art.inputs.mask_type            = 'file'
 art.inputs.parameter_source     = 'SPM'
@@ -200,7 +184,7 @@ cont2 = ('Task-Odd>Task-Even','T', ['Task-Odd','Task-Even'],[1,-1])
 contrasts = [cont1,cont2]
 
 """Generate design information using
-:class:`nipype.interfaces.spm.SpecifyModel`. nipy accepts only design specified 
+:class:`nipype.interfaces.spm.SpecifyModel`. nipy accepts only design specified
 in seconds so "output_units" has always have to be set to "secs".
 """
 

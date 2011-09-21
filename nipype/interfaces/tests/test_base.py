@@ -74,9 +74,9 @@ def teardown_file(tmp_dir):
 
 
 def test_TraitedSpec():
-    yield assert_true, nib.TraitedSpec().hashval
+    yield assert_true, nib.TraitedSpec().get_hashval()
     yield assert_equal, nib.TraitedSpec().__repr__(), '\n\n'
-    
+
     class spec(nib.TraitedSpec):
         foo = nib.traits.Int
         goo = nib.traits.Float(usedefault=True)
@@ -88,14 +88,14 @@ def test_TraitedSpec():
     yield assert_raises, nib.traits.TraitError, specfunc, 1
     infields = spec(foo=1)
     hashval = ({'foo': 1, 'goo': '0.0000000000'}, 'cb03be1c3182ff941eecea6440c910f0')
-    yield assert_equal, infields.hashval[0], hashval[0]
-    yield assert_equal, infields.hashval[1], hashval[1]
+    yield assert_equal, infields.get_hashval(), hashval
+    #yield assert_equal, infields.hashval[1], hashval[1]
     yield assert_equal, infields.__repr__(), '\nfoo = 1\ngoo = 0.0\n'
 
 def test_TraitedSpec_logic():
     class spec3(nib.TraitedSpec):
         _xor_inputs = ('foo', 'bar')
-        
+
         foo = nib.traits.Int(xor = _xor_inputs,
                              desc = 'foo or bar, not both')
         bar = nib.traits.Int(xor = _xor_inputs,
@@ -118,7 +118,7 @@ def test_TraitedSpec_logic():
     yield assert_equal, myif.inputs.foo, 1
     myif.inputs.kung = 2
     yield assert_equal, myif.inputs.kung, 2.0
-   
+
 
 def checknose():
     """check version of nose for known incompatability"""
@@ -136,11 +136,27 @@ def test_TraitedSpec_withFile():
     class spec2(nib.TraitedSpec):
         moo = nib.File(exists=True)
         doo = nib.traits.List(nib.File(exists=True))
-    infields = spec2(moo=tmp_infile,doo=[tmp_infile])
-    if config.get('execution', 'hash_method').lower() == 'content':
-        yield assert_equal, infields.hashval[1], '8c227fb727c32e00cd816c31d8fea9b9'
+    infields = spec2(moo=tmp_infile, doo=[tmp_infile])
+    hashval = infields.get_hashval(hash_method='content')
+    yield assert_equal, hashval[1], '8c227fb727c32e00cd816c31d8fea9b9'
     teardown_file(tmpd)
-    
+
+@skipif(checknose)
+def test_TraitedSpec_withNoFileHashing():
+    tmp_infile = setup_file()
+    tmpd, nme = os.path.split(tmp_infile)
+    pwd = os.getcwd()
+    os.chdir(tmpd)
+    yield assert_true, os.path.exists(tmp_infile)
+    class spec2(nib.TraitedSpec):
+        moo = nib.File(exists=True, hash_files=False)
+        doo = nib.traits.List(nib.File(exists=True))
+    infields = spec2(moo=nme, doo=[tmp_infile])
+    hashval = infields.get_hashval(hash_method='content')
+    yield assert_equal, hashval[1], '642c326a05add933e9cdc333ce2d0ac2'
+    os.chdir(pwd)
+    teardown_file(tmpd)
+
 def test_Interface():
     yield assert_equal, nib.Interface.input_spec, None
     yield assert_equal, nib.Interface.output_spec, None
@@ -153,7 +169,7 @@ def test_Interface():
     class DerivedInterface(nib.Interface):
         def __init__(self):
             pass
-        
+
     nif = DerivedInterface()
     yield assert_raises, NotImplementedError, nif.run
     yield assert_raises, NotImplementedError, nif.aggregate_outputs
@@ -163,7 +179,7 @@ def test_Interface():
 def test_BaseInterface():
     yield assert_equal, nib.BaseInterface.help(), None
     yield assert_equal, nib.BaseInterface._get_filecopy_info(), []
-    
+
 
     class InputSpec(nib.TraitedSpec):
         foo = nib.traits.Int(desc='a random int')
@@ -175,7 +191,7 @@ def test_BaseInterface():
         foo = nib.traits.Int(desc='a random int')
     class DerivedInterface(nib.BaseInterface):
         input_spec = InputSpec
-        
+
     yield assert_equal, DerivedInterface.help(), None
     yield assert_equal, DerivedInterface()._outputs(), None
     yield assert_equal, DerivedInterface._get_filecopy_info()[0]['key'], 'woo'
@@ -187,7 +203,7 @@ def test_BaseInterface():
     yield assert_equal, DerivedInterface(goo=1)._check_mandatory_inputs(), None
     yield assert_raises, ValueError, DerivedInterface().run
     yield assert_raises, NotImplementedError, DerivedInterface(goo=1).run
-    
+
     class DerivedInterface2(DerivedInterface):
         output_spec = OutputSpec
         def _run_interface(self, runtime):
@@ -233,7 +249,7 @@ def test_Commandline():
     yield assert_equal, cmd[0], '-g'
     yield assert_equal, cmd[-1], '-i 1 -i 2 -i 3'
     yield assert_true, 'hello' not in ' '.join(cmd)
-    
+
     class CommandLineInputSpec2(nib.CommandLineInputSpec):
         foo = nib.File(argstr='%s', desc='a str', genfile=True)
     nib.CommandLine.input_spec = CommandLineInputSpec2
@@ -244,7 +260,7 @@ def test_Commandline():
         input_spec = CommandLineInputSpec2
         def _gen_filename(self, name):
             return 'filename'
-        
+
     ci6 = DerivedClass(command='cmd')
     yield assert_equal, ci6._parse_inputs()[0], 'filename'
     nib.CommandLine.input_spec = nib.CommandLineInputSpec

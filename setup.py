@@ -21,13 +21,12 @@ def configuration(parent_package='',top_path=None):
                        delegate_options_to_subpackages=True,
                        quiet=True)
     # The quiet=True option will silence all of the name setting warnings:
-    # Ignoring attempt to set 'name' (from 'nipy.core' to 
+    # Ignoring attempt to set 'name' (from 'nipy.core' to
     #    'nipy.core.image')
     # Robert Kern recommends setting quiet=True on the numpy list, stating
     # these messages are probably only used in debugging numpy distutils.
 
     config.get_version('nipype/version.py') # sets config.version
-
     config.add_subpackage('nipype', 'nipype')
     config.add_subpackage('nipype.testing.numpytesting')
 
@@ -36,7 +35,7 @@ def configuration(parent_package='',top_path=None):
 ################################################################################
 # For some commands, use setuptools
 
-if len(set(('develop', 'bdist_egg', 'bdist_rpm', 'bdist', 'bdist_dumb', 
+if len(set(('develop', 'bdist_egg', 'bdist_rpm', 'bdist', 'bdist_dumb',
             'bdist_wininst', 'install_egg_info', 'egg_info', 'easy_install',
             )).intersection(sys.argv)) > 0:
     from setup_egg import extra_setuptools_args
@@ -49,7 +48,7 @@ if not 'extra_setuptools_args' in globals():
 
 
 ################################################################################
-# Import the documentation building classes. 
+# Import the documentation building classes.
 
 try:
     from build_docs import cmdclass
@@ -89,24 +88,28 @@ systems.
 
 def main(**extra_args):
     from numpy.distutils.core import setup
-    
+
+    install_requires=['numpy >=1.1',
+              'scipy >=0.7',
+              'matplotlib >=1.0.0',
+              'networkx >=1.0',
+              'nibabel >=1.0.0',
+              'traits >=4.0.0',]
+
+    try:
+        import json
+    except ImportError:
+        install_requires.append('simplejson')
+
     setup( name = 'nipype',
            description = 'Neuroimaging in Python: Pipelines and Interfaces',
            author = 'Various',
            author_email = 'nipy-devel@neuroimaging.scipy.org',
-           url = 'http://nipy.sourceforge.net/nipype',
+           url = 'http://nipy.org/nipype',
            long_description = desc,
            configuration = configuration,
            cmdclass = cmdclass,
-           requires=['numpy (>=1.1)',
-              'scipy (>=0.7)',
-              'networkx (>=1.0)',
-              'ipython (>=0.10)',
-              'enthought.traits (>=3.2.0)',
-              'nibabel (>=1.0.0)',
-              'json',
-              'twisted',
-              'zope.interface'],
+           install_requires=install_requires,
            **extra_args)
 
 

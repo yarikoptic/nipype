@@ -12,28 +12,23 @@ was written to work with FSL version 4.1.4.
 """
 
 import os
-from copy import deepcopy
 from glob import glob
 import warnings
 from shutil import rmtree
 
 import numpy as np
 
-from nipype.interfaces.fsl.base import (FSLCommand, Info, FSLCommandInputSpec)
-from nipype.interfaces.base import (Bunch, load_template,
-                                    InterfaceResult, File, traits,
-                                    TraitedSpec,
-                                    BaseInterface,
+from nipype.interfaces.fsl.base import (FSLCommand, FSLCommandInputSpec)
+from nipype.interfaces.base import (load_template, File, traits, isdefined,
+                                    TraitedSpec, BaseInterface, Directory,
                                     InputMultiPath, OutputMultiPath,
-    BaseInterfaceInputSpec)
-from nipype.utils.filemanip import (list_to_filename, filename_to_list,
-                                    loadflat)
+                                    BaseInterfaceInputSpec)
+from nipype.utils.filemanip import (list_to_filename, filename_to_list)
 from nibabel import load
-from nipype.utils.misc import isdefined
-from nipype.interfaces.traits import Directory
 
 warn = warnings.warn
 warnings.filterwarnings('always', category=UserWarning)
+
 
 class Level1DesignInputSpec(BaseInterfaceInputSpec):
     interscan_interval = traits.Float(mandatory=True,
@@ -77,18 +72,20 @@ session list is None or not provided, all sessions are used. For F \
 contrasts, the condition list should contain previously defined \
 T-contrasts.")
 
+
 class Level1DesignOutputSpec(TraitedSpec):
     fsf_files = OutputMultiPath(File(exists=True),
                      desc='FSL feat specification files')
     ev_files = OutputMultiPath(File(exists=True),
                      desc='condition information files')
 
+
 class Level1Design(BaseInterface):
     """Generate FEAT specific files
 
     Examples
     --------
-    
+
     >>> level1design = Level1Design()
     >>> level1design.inputs.interscan_interval = 2.5
     >>> level1design.inputs.bases = {'dgamma':{'derivs': False}}
@@ -218,7 +215,7 @@ class Level1Design(BaseInterface):
                 for j, con in enumerate(contrasts):
                     if con[1] == 'F':
                         continue
-                    tidx = ttest_idx.index(j)+1
+                    tidx = ttest_idx.index(j) + 1
                     ev_txt += contrast_prolog.substitute(cnum=tidx,
                                                          ctype=ctype,
                                                          cname=con[0])
@@ -237,7 +234,7 @@ class Level1Design(BaseInterface):
                         ev_txt += "\n"
                     if con[0] in con_map.keys():
                         for fconidx in con_map[con[0]]:
-                            ev_txt += contrast_ftest_element.substitute(cnum=ftest_idx.index(fconidx)+1,
+                            ev_txt += contrast_ftest_element.substitute(cnum=ftest_idx.index(fconidx) + 1,
                                                                         element=tidx,
                                                                         ctype=ctype,
                                                                         val=1)
@@ -291,8 +288,6 @@ class Level1Design(BaseInterface):
                     n_tcon += 1
                 elif c[1] == 'F':
                     n_fcon += 1
-                else:
-                    print "unknown contrast type: %s" % str(c)
 
         for i, info in enumerate(session_info):
             do_tempfilter = 1
@@ -334,6 +329,7 @@ class Level1Design(BaseInterface):
             usetd = int(self.inputs.bases[basis_key]['derivs'])
         for runno, runinfo in enumerate(self._format_session_info(self.inputs.session_info)):
             outputs['fsf_files'].append(os.path.join(cwd, 'run%d.fsf' % runno))
+            outputs['ev_files'].insert(runno, [])
             evname = []
             for field in ['cond', 'regress']:
                 for i, cond in enumerate(runinfo[field]):
@@ -341,19 +337,21 @@ class Level1Design(BaseInterface):
                     evname.append(name)
                     evfname = os.path.join(cwd, 'ev_%s_%d_%d.txt' % (name, runno,
                                                                      len(evname)))
-                    outputs['ev_files'].append(evfname)
                     if field == 'cond':
                         if usetd:
                             evname.append(name + 'TD')
+            outputs['ev_files'].append(os.path.join(cwd, evfname))
         return outputs
 
 
 class FEATInputSpec(FSLCommandInputSpec):
-    fsf_file = File(exist=True, mandatory=True,argstr="%s", position=0,
+    fsf_file = File(exist=True, mandatory=True, argstr="%s", position=0,
                     desc="File specifying the feat design spec file")
+
 
 class FEATOutputSpec(TraitedSpec):
     feat_dir = Directory(exists=True)
+
 
 class FEAT(FSLCommand):
     """Uses FSL feat to calculate first level stats
@@ -367,6 +365,7 @@ class FEAT(FSLCommand):
         outputs['feat_dir'] = glob(os.path.join(os.getcwd(), '*feat'))[0]
         return outputs
 
+
 class FEATModelInputSpec(FSLCommandInputSpec):
     fsf_file = File(exist=True, mandatory=True, argstr="%s", position=0,
                     desc="File specifying the feat design spec file",
@@ -376,12 +375,14 @@ class FEATModelInputSpec(FSLCommandInputSpec):
                               desc="Event spec files generated by level1design",
                               position=1, copyfile=False)
 
+
 class FEATModelOutpuSpec(TraitedSpec):
     design_file = File(exists=True, desc='Mat file containing ascii matrix for design')
     design_image = File(exists=True, desc='Graphical representation of design matrix')
     design_cov = File(exists=True, desc='Graphical representation of design covariance')
     con_file = File(exists=True, desc='Contrast file containing contrast vectors')
     fcon_file = File(desc='Contrast file containing contrast vectors')
+
 
 class FEATModel(FSLCommand):
     """Uses FSL feat_model to generate design.mat files
@@ -427,6 +428,7 @@ class FEATModel(FSLCommand):
 
 # interface to fsl command line model fit routines
 # ohinds: 2009-12-28
+
 class FILMGLSInputSpec(FSLCommandInputSpec):
     in_file = File(exists=True, mandatory=True, position=-3,
                   argstr='%s',
@@ -444,26 +446,25 @@ class FILMGLSInputSpec(FSLCommandInputSpec):
     brightness_threshold = traits.Int(min=0, argstr='-epith %d',
         desc='susan brightness threshold, otherwise it is estimated')
     full_data = traits.Bool(argstr='-v', desc='output full data')
-    # XX: Are these mutually exclusive? [SG]
-    #_estimate_xor = ['autocorr_estimate_only', 'fit_armodel', 'tukey_window',
-    #                 'multitaper_product', 'use_pava', 'autocorr_noestimate']
+    _estimate_xor = ['autocorr_estimate_only', 'fit_armodel', 'tukey_window',
+                     'multitaper_product', 'use_pava', 'autocorr_noestimate']
     autocorr_estimate_only = traits.Bool(argstr='-ac',
-                                    xor=['autocorr_noestimate'],
+                                    xor=_estimate_xor,
                    desc='perform autocorrelation estimatation only')
-    fit_armodel = traits.Bool(argstr='-ar',
+    fit_armodel = traits.Bool(argstr='-ar', xor=_estimate_xor,
         desc='fits autoregressive model - default is to use tukey with M=sqrt(numvols)')
-    tukey_window = traits.Int(argstr='-tukey %d',
+    tukey_window = traits.Int(argstr='-tukey %d', xor=_estimate_xor,
         desc='tukey window size to estimate autocorr')
-    multitaper_product = traits.Int(argstr='-mt %d',
+    multitaper_product = traits.Int(argstr='-mt %d', xor=_estimate_xor,
                desc='multitapering with slepian tapers and num is the time-bandwidth product')
     use_pava = traits.Bool(argstr='-pava', desc='estimates autocorr using PAVA')
-    autocorr_noestimate = traits.Bool(argstr='-noest',
-                                      xor=['autocorr_estimate_only'],
+    autocorr_noestimate = traits.Bool(argstr='-noest', xor=_estimate_xor,
                    desc='do not estimate autocorrs')
     output_pwdata = traits.Bool(argstr='-output_pwdata',
                    desc='output prewhitened data and average design matrix')
     results_dir = Directory('results', argstr='-rn %s', usedefault=True,
                             desc='directory to store results in')
+
 
 class FILMGLSOutputSpec(TraitedSpec):
     param_estimates = OutputMultiPath(File(exists=True),
@@ -474,13 +475,18 @@ class FILMGLSOutputSpec(TraitedSpec):
     sigmasquareds = File(exists=True, desc='summary of residuals, See Woolrich, et. al., 2001')
     results_dir = Directory(exists=True,
                          desc='directory storing model estimation output')
+    corrections = File(exists=True,
+                       desc='statistical corrections used within FILM modelling')
+    logfile = File(exists=True,
+                   desc='FILM run logfile')
+
 
 class FILMGLS(FSLCommand):
     """Use FSL film_gls command to fit a design matrix to voxel timeseries
 
     Examples
     --------
-    
+
     Initialize with no options, assigning them when calling run:
 
     >>> from nipype.interfaces import fsl
@@ -508,7 +514,7 @@ threshold=10, results_dir='stats')
     _cmd = 'film_gls'
     input_spec = FILMGLSInputSpec
     output_spec = FILMGLSOutputSpec
-    
+
     def _get_pe_files(self, cwd):
         files = None
         if isdefined(self.inputs.design_file):
@@ -518,7 +524,7 @@ threshold=10, results_dir='stats')
                     numpes = int(line.split()[-1])
                     files = []
                     for i in range(numpes):
-                        files.append(self._gen_fname('pe%d.nii'%(i+1),
+                        files.append(self._gen_fname('pe%d.nii' % (i + 1),
                                                      cwd=cwd))
                     break
             fp.close()
@@ -533,9 +539,14 @@ threshold=10, results_dir='stats')
         if pe_files:
             outputs['param_estimates'] = pe_files
         outputs['residual4d'] = self._gen_fname('res4d.nii', cwd=results_dir)
-        outputs['dof_file'] = os.path.join(results_dir,'dof')
+        outputs['dof_file'] = os.path.join(results_dir, 'dof')
         outputs['sigmasquareds'] = self._gen_fname('sigmasquareds.nii',
                                                    cwd=results_dir)
+        outputs['corrections'] = self._gen_fname('corrections.nii',
+                                                 cwd=results_dir)
+        outputs['logfile'] = self._gen_fname('logfile',
+                                             change_ext=False,
+                                             cwd=results_dir)
         return outputs
 
 
@@ -546,9 +557,11 @@ class FEATRegisterInputSpec(BaseInterfaceInputSpec):
                      mandatory=True)
     reg_dof = traits.Int(12, desc="registration degrees of freedom", usedefault=True)
 
+
 class FEATRegisterOutputSpec(TraitedSpec):
     fsf_file = File(exists=True,
                                 desc="FSL feat specification file")
+
 
 class FEATRegister(BaseInterface):
     """Register feat directories to a specific standard
@@ -579,6 +592,7 @@ class FEATRegister(BaseInterface):
         outputs = self._outputs().get()
         outputs['fsf_file'] = os.path.abspath(os.path.join(os.getcwd(), 'register.fsf'))
         return outputs
+
 
 class FLAMEOInputSpec(FSLCommandInputSpec):
     cope_file = File(exists=True, argstr='--copefile=%s', mandatory=True,
@@ -613,7 +627,7 @@ class FLAMEOInputSpec(FSLCommandInputSpec):
                             desc='sigma (in mm) to use for Gaussian smoothing the DOFs in FLAME 2. Default is 1mm, -1 indicates no smoothing')
     outlier_iter = traits.Int(argstr='--ioni=%d',
                               desc='Number of max iterations to use when inferring outliers. Default is 12.')
-    log_dir = Directory("stats", argstr='--ld=%s', usedefault=True) # ohinds
+    log_dir = Directory("stats", argstr='--ld=%s', usedefault=True)  # ohinds
     # no support for ven, vef
 
 
@@ -633,12 +647,13 @@ class FLAMEOOutputSpec(TraitedSpec):
 
 # interface to fsl command line higher level model fit
 # satra: 2010-01-09
+
 class FLAMEO(FSLCommand):
     """Use FSL flameo command to perform higher level model fits
 
     Examples
     --------
-    
+
     Initialize FLAMEO with no options, assigning them when calling run:
 
     >>> from nipype.interfaces import fsl
@@ -714,19 +729,29 @@ class FLAMEO(FSLCommand):
 
         return outputs
 
+
 class ContrastMgrInputSpec(FSLCommandInputSpec):
     tcon_file = File(exists=True, mandatory=True,
                      argstr='%s', position=-1,
                      desc='contrast file containing T-contrasts')
     fcon_file = File(exists=True, argstr='-f %s',
                      desc='contrast file containing F-contrasts')
-    stats_dir = Directory(exists=True, mandatory=True,
-                          argstr='%s', position=-2,
-                          desc='directory containing first level analysis')
+    param_estimates = InputMultiPath(File(exists=True),
+                                     argstr='', copyfile=False,
+                                     mandatory=True,
+          desc='Parameter estimates for each column of the design matrix')
+    corrections = File(exists=True, copyfile=False, mandatory=True,
+                       desc='statistical corrections used within FILM modelling')
+    dof_file = File(exists=True, argstr='', copyfile=False, mandatory=True,
+                    desc='degrees of freedom')
+    sigmasquareds = File(exists=True, argstr='', position=-2,
+                         copyfile=False, mandatory=True,
+                         desc='summary of residuals, See Woolrich, et. al., 2001')
     contrast_num = traits.Int(min=1, argstr='-cope',
                 desc='contrast number to start labeling copes from')
     suffix = traits.Str(argstr='-suffix %s',
                         desc='suffix to put on the end of the cope filename before the contrast number, default is nothing')
+
 
 class ContrastMgrOutputSpec(TraitedSpec):
     copes = OutputMultiPath(File(exists=True),
@@ -739,16 +764,42 @@ class ContrastMgrOutputSpec(TraitedSpec):
                                  desc='t-stat file for each contrast')
     fstats = OutputMultiPath(File(exists=True),
                                  desc='f-stat file for each contrast')
-    neffs =  OutputMultiPath(File(exists=True),
+    neffs = OutputMultiPath(File(exists=True),
                                  desc='neff file ?? for each contrast')
+
 
 class ContrastMgr(FSLCommand):
     """Use FSL contrast_mgr command to evaluate contrasts
+
+    In interface mode this file assumes that all the required inputs are in the
+    same location.
     """
 
     _cmd = 'contrast_mgr'
     input_spec = ContrastMgrInputSpec
     output_spec = ContrastMgrOutputSpec
+
+    def _run_interface(self, runtime):
+        # The returncode is meaningless in ContrastMgr.  So check the output
+        # in stderr and if it's set, then update the returncode
+        # accordingly.
+        runtime = super(ContrastMgr, self)._run_interface(runtime)
+        if runtime.stderr:
+            self.raise_exception(runtime)
+        return runtime
+
+    def _format_arg(self, name, trait_spec, value):
+        if name in ['param_estimates', 'corrections', 'dof_file']:
+            return ''
+        elif name in ['sigmasquareds']:
+            path, _ = os.path.split(value)
+            return path
+        else:
+            return super(ContrastMgr, self)._format_arg(name, trait_spec, value)
+
+    def _get_design_root(self, infile):
+        _, fname = os.path.split(infile)
+        return fname.split('.')[0]
 
     def _get_numcons(self):
         numtcons = 0
@@ -771,7 +822,7 @@ class ContrastMgr(FSLCommand):
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        pth = self.inputs.stats_dir
+        pth, _ = os.path.split(self.inputs.sigmasquareds)
         numtcons, numfcons = self._get_numcons()
         base_contrast = 1
         if isdefined(self.inputs.contrast_num):
@@ -782,15 +833,15 @@ class ContrastMgr(FSLCommand):
         tstats = []
         neffs = []
         for i in range(numtcons):
-            copes.append(self._gen_fname('cope%d.nii'%(base_contrast+i),
+            copes.append(self._gen_fname('cope%d.nii' % (base_contrast + i),
                                        cwd=pth))
-            varcopes.append(self._gen_fname('varcope%d.nii'%(base_contrast+i),
+            varcopes.append(self._gen_fname('varcope%d.nii' % (base_contrast + i),
                                           cwd=pth))
-            zstats.append(self._gen_fname('zstat%d.nii'%(base_contrast+i),
+            zstats.append(self._gen_fname('zstat%d.nii' % (base_contrast + i),
                                         cwd=pth))
-            tstats.append(self._gen_fname('tstat%d.nii'%(base_contrast+i),
+            tstats.append(self._gen_fname('tstat%d.nii' % (base_contrast + i),
                                         cwd=pth))
-            neffs.append(self._gen_fname('neff%d.nii'%(base_contrast+i),
+            neffs.append(self._gen_fname('neff%d.nii' % (base_contrast + i),
                                        cwd=pth))
         if copes:
             outputs['copes'] = copes
@@ -800,20 +851,23 @@ class ContrastMgr(FSLCommand):
             outputs['neffs'] = neffs
         fstats = []
         for i in range(numfcons):
-            fstats.append(self._gen_fname('fstat%d.nii'%(base_contrast+i),
+            fstats.append(self._gen_fname('fstat%d.nii' % (base_contrast + i),
                                         cwd=pth))
         if fstats:
             outputs['fstats'] = fstats
         return outputs
 
+
 class L2ModelInputSpec(BaseInterfaceInputSpec):
     num_copes = traits.Int(min=1, mandatory=True,
                              desc='number of copes to be combined')
+
 
 class L2ModelOutputSpec(TraitedSpec):
     design_mat = File(exists=True, desc='design matrix file')
     design_con = File(exists=True, desc='design contrast file')
     design_grp = File(exists=True, desc='design group file')
+
 
 class L2Model(BaseInterface):
     """Generate subject specific second level model
@@ -844,7 +898,7 @@ class L2Model(BaseInterface):
                    '/NumWaves       1',
                    '/NumContrasts   1',
                    '/PPheights          %e' % 1,
-                   '/RequiredEffect     100.0', #XX where does this
+                   '/RequiredEffect     100.0',  # XX where does this
                    #number come from
                    '',
                    '/Matrix',
@@ -859,12 +913,12 @@ class L2Model(BaseInterface):
             grp_txt += ['1']
         grp_txt = '\n'.join(grp_txt)
 
-        txt = {'design.mat' : mat_txt,
-               'design.con' : con_txt,
-               'design.grp' : grp_txt}
+        txt = {'design.mat': mat_txt,
+               'design.con': con_txt,
+               'design.grp': grp_txt}
 
         # write design files
-        for i, name in enumerate(['design.mat','design.con','design.grp']):
+        for i, name in enumerate(['design.mat', 'design.con', 'design.grp']):
             f = open(os.path.join(cwd, name), 'wt')
             f.write(txt[name])
             f.close()
@@ -875,8 +929,9 @@ class L2Model(BaseInterface):
         outputs = self._outputs().get()
         for field in outputs.keys():
             outputs[field] = os.path.join(os.getcwd(),
-                                          field.replace('_','.'))
+                                          field.replace('_', '.'))
         return outputs
+
 
 class MultipleRegressDesignInputSpec(BaseInterfaceInputSpec):
     contrasts = traits.List(
@@ -897,17 +952,19 @@ class MultipleRegressDesignInputSpec(BaseInterfaceInputSpec):
 session list is None or not provided, all sessions are used. For F \
 contrasts, the condition list should contain previously defined \
 T-contrasts without any weight list.")
-    regressors = traits.Dict(traits.Str,traits.List(traits.Float),
+    regressors = traits.Dict(traits.Str, traits.List(traits.Float),
                              mandatory=True,
                              desc='dictionary containing named lists of regressors')
     groups = traits.List(traits.Int,
                   desc='list of group identifiers (defaults to single group)')
+
 
 class MultipleRegressDesignOutputSpec(TraitedSpec):
     design_mat = File(exists=True, desc='design matrix file')
     design_con = File(exists=True, desc='design t-contrast file')
     design_fts = File(exists=True, desc='design f-contrast file')
     design_grp = File(exists=True, desc='design group file')
+
 
 class MultipleRegressDesign(BaseInterface):
     """Generate multiple regression design
@@ -916,17 +973,17 @@ class MultipleRegressDesign(BaseInterface):
       FSL does not demean columns for higher level analysis.
 
     Please see `FSL documentation <http://www.fmrib.ox.ac.uk/fsl/feat5/detail.html#higher>`_
-    for more details on model specification for higher level analysis. 
+    for more details on model specification for higher level analysis.
 
     Examples
     --------
 
     >>> from nipype.interfaces.fsl import L2Model
     >>> model = MultipleRegressDesign()
-    >>> model.inputs.contrasts = [['group mean','T',['reg1'],[1]]]
-    >>> model.inputs.regressors = dict(reg1=[1,1,1],reg2=[2.,-4,3])
+    >>> model.inputs.contrasts = [['group mean', 'T',['reg1'],[1]]]
+    >>> model.inputs.regressors = dict(reg1=[1, 1, 1], reg2=[2.,-4, 3])
     >>> model.run() # doctest: +SKIP
-    
+
     """
 
     input_spec = MultipleRegressDesignInputSpec
@@ -937,26 +994,25 @@ class MultipleRegressDesign(BaseInterface):
         regs = sorted(self.inputs.regressors.keys())
         nwaves = len(regs)
         npoints = len(self.inputs.regressors[regs[0]])
-        ntcons = sum([1 for con in self.inputs.contrasts if con[1]=='T'])
-        nfcons = sum([1 for con in self.inputs.contrasts if con[1]=='F'])
+        ntcons = sum([1 for con in self.inputs.contrasts if con[1] == 'T'])
+        nfcons = sum([1 for con in self.inputs.contrasts if con[1] == 'F'])
         # write mat file
-        mat_txt = ['/NumWaves       %d'%nwaves,
-                   '/NumPoints      %d'%npoints,
-                   ]
+        mat_txt = ['/NumWaves       %d' % nwaves,
+                   '/NumPoints      %d' % npoints]
         ppheights = []
         for reg in regs:
-            maxreg=np.max(self.inputs.regressors[reg])
-            minreg=np.min(self.inputs.regressors[reg])
+            maxreg = np.max(self.inputs.regressors[reg])
+            minreg = np.min(self.inputs.regressors[reg])
             if np.sign(maxreg) == np.sign(minreg):
                 regheight = max([abs(minreg), abs(maxreg)])
             else:
-                regheight = abs(maxreg-minreg)
-            ppheights.append('%e'%regheight)
-        mat_txt += ['/PPheights      '+' '.join(ppheights)]
+                regheight = abs(maxreg - minreg)
+            ppheights.append('%e' % regheight)
+        mat_txt += ['/PPheights      ' + ' '.join(ppheights)]
         mat_txt += ['',
                     '/Matrix']
         for cidx in range(npoints):
-            mat_txt.append(' '.join(['%e'%self.inputs.regressors[key][cidx] for key in regs]))
+            mat_txt.append(' '.join(['%e' % self.inputs.regressors[key][cidx] for key in regs]))
         mat_txt = '\n'.join(mat_txt)
         # write t-con file
         con_txt = []
@@ -966,32 +1022,32 @@ class MultipleRegressDesign(BaseInterface):
             if con[1] == 'T':
                 tconmap[conidx] = counter
                 counter += 1
-                con_txt += ['/ContrastName%d   %s'%(counter, con[0])]
-        con_txt +=['/NumWaves       %d'%nwaves,
-                   '/NumContrasts   %d'%ntcons,
-                   '/PPheights          %s' % ' '.join(['%e'%1 for i in range(counter)]),
-                   '/RequiredEffect     %s' % ' '.join(['%.3f'%100 for i in range(counter)]),
-                   '',
-                   '/Matrix']
+                con_txt += ['/ContrastName%d   %s' % (counter, con[0])]
+        con_txt += ['/NumWaves       %d' % nwaves,
+                    '/NumContrasts   %d' % ntcons,
+                    '/PPheights          %s' % ' '.join(['%e' % 1 for i in range(counter)]),
+                    '/RequiredEffect     %s' % ' '.join(['%.3f' % 100 for i in range(counter)]),
+                    '',
+                    '/Matrix']
         for idx in sorted(tconmap.keys()):
-            convals = np.zeros((nwaves,1))
+            convals = np.zeros((nwaves, 1))
             for regidx, reg in enumerate(self.inputs.contrasts[idx][2]):
-                convals[regs.index(reg)] = self.inputs.contrasts[idx][3][regidx] 
-            con_txt.append(' '.join(['%e'%val for val in convals]))
+                convals[regs.index(reg)] = self.inputs.contrasts[idx][3][regidx]
+            con_txt.append(' '.join(['%e' % val for val in convals]))
         con_txt = '\n'.join(con_txt)
         # write f-con file
         fcon_txt = ''
         if nfcons:
-            fcon_txt =['/NumWaves       %d'%ntcons,
-                       '/NumContrasts   %d'%nfcons,
-                       '',
-                       '/Matrix']
+            fcon_txt = ['/NumWaves       %d' % ntcons,
+                        '/NumContrasts   %d' % nfcons,
+                        '',
+                        '/Matrix']
             for conidx, con in enumerate(self.inputs.contrasts):
                 if con[1] == 'F':
-                    convals = np.zeros((ntcons,1))
+                    convals = np.zeros((ntcons, 1))
                     for tcon in con[2]:
                         convals[tconmap[self.inputs.contrasts.index(tcon)]] = 1
-                    fcon_txt.append(' '.join(['%d'%val for val in convals]))
+                    fcon_txt.append(' '.join(['%d' % val for val in convals]))
                     fcon_txt = '\n'.join(fcon_txt)
         # write group file
         grp_txt = ['/NumWaves       1',
@@ -1000,21 +1056,21 @@ class MultipleRegressDesign(BaseInterface):
                    '/Matrix']
         for i in range(npoints):
             if isdefined(self.inputs.groups):
-                grp_txt += ['%d'%self.inputs.groups[i]]
+                grp_txt += ['%d' % self.inputs.groups[i]]
             else:
                 grp_txt += ['1']
         grp_txt = '\n'.join(grp_txt)
 
-        txt = {'design.mat' : mat_txt,
-               'design.con' : con_txt,
-               'design.fts' : fcon_txt,
-               'design.grp' : grp_txt}
+        txt = {'design.mat': mat_txt,
+               'design.con': con_txt,
+               'design.fts': fcon_txt,
+               'design.grp': grp_txt}
 
         # write design files
-        for key,val in txt.items():
+        for key, val in txt.items():
             if ('fts' in key) and (nfcons == 0):
                 continue
-            filename = key.replace('_','.')
+            filename = key.replace('_', '.')
             f = open(os.path.join(cwd, filename), 'wt')
             f.write(val)
             f.close()
@@ -1023,13 +1079,14 @@ class MultipleRegressDesign(BaseInterface):
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        nfcons = sum([1 for con in self.inputs.contrasts if con[1]=='F'])
+        nfcons = sum([1 for con in self.inputs.contrasts if con[1] == 'F'])
         for field in outputs.keys():
-            if ('fts' in field) and (nfcons==0):
+            if ('fts' in field) and (nfcons == 0):
                 continue
             outputs[field] = os.path.join(os.getcwd(),
-                                          field.replace('_','.'))
+                                          field.replace('_', '.'))
         return outputs
+
 
 class SMMInputSpec(FSLCommandInputSpec):
     spatial_data_file = File(exists=True, position=0, argstr='--sdf="%s"', mandatory=True,
@@ -1039,10 +1096,12 @@ class SMMInputSpec(FSLCommandInputSpec):
     no_deactivation_class = traits.Bool(position=2, argstr="--zfstatmode",
                              desc="enforces no deactivation class")
 
+
 class SMMOutputSpec(TraitedSpec):
     null_p_map = File(exists=True)
     activation_p_map = File(exists=True)
     deactivation_p_map = File(exists=True)
+
 
 class SMM(FSLCommand):
     '''
@@ -1065,61 +1124,63 @@ class SMM(FSLCommand):
 
 
 class MELODICInputSpec(FSLCommandInputSpec):
-    in_files = InputMultiPath(File(exists=True),argst="-i %s",mandatory=True,position=0,
+    in_files = InputMultiPath(File(exists=True), argstr="-i %s", mandatory=True, position=0,
                               desc="input file names (either single file name or a list)")
-    out_dir = Directory(exists=True,argst="-o %s",desc="output directory name")
-    mask = File(exists=True, argst="-m %s",desc="file name of mask for thresholding")
-    no_mask = traits.Bool(argst="--nomask",desc="switch off masking")
-    update_mask = traits.Bool(argst="--update_mask",desc="switch off mask updating")
-    no_bet = traits.Bool(argst="--nobet",desc="switch off BET")
-    bg_threshold = traits.Float(argst="--bgthreshold=%f",desc="brain/non-brain threshold used to mask non-brain voxels, as a percentage (only if --nobet selected)")
-    dim = traits.Int(argst="-d %d",desc="dimensionality reduction into #num dimensions"\
+    out_dir = Directory(argstr="-o %s", desc="output directory name", genfile=True)
+    mask = File(exists=True, argstr="-m %s", desc="file name of mask for thresholding")
+    no_mask = traits.Bool(argstr="--nomask", desc="switch off masking")
+    update_mask = traits.Bool(argstr="--update_mask", desc="switch off mask updating")
+    no_bet = traits.Bool(argstr="--nobet", desc="switch off BET")
+    bg_threshold = traits.Float(argstr="--bgthreshold=%f", desc="brain/non-brain threshold used to mask non-brain voxels, as a percentage (only if --nobet selected)")
+    dim = traits.Int(argstr="-d %d", desc="dimensionality reduction into #num dimensions"\
                      "(default: automatic estimation)")
-    dim_est = traits.Str(argst="--dimest=%s",desc="use specific dim. estimation technique:"\
+    dim_est = traits.Str(argstr="--dimest=%s", desc="use specific dim. estimation technique:"\
                          " lap, bic, mdl, aic, mean (default: lap)")
-    sep_whiten = traits.Bool(argst="--sep_whiten",desc="switch on separate whitening")
-    sep_vn = traits.Bool(argst="--sep_vn",desc="switch off joined variance normalization")
-    num_ICs = traits.Int(argst="-n %d",desc="number of IC's to extract (for deflation approach)")
-    approach = traits.Str(argst="-a %s",desc="approach for decomposition, 2D: defl, symm (default),"\
+    sep_whiten = traits.Bool(argstr="--sep_whiten", desc="switch on separate whitening")
+    sep_vn = traits.Bool(argstr="--sep_vn", desc="switch off joined variance normalization")
+    num_ICs = traits.Int(argstr="-n %d", desc="number of IC's to extract (for deflation approach)")
+    approach = traits.Str(argstr="-a %s", desc="approach for decomposition, 2D: defl, symm (default), "\
                           " 3D: tica (default), concat")
-    non_linearity = traits.Str(argst="--nl=%s",desc="nonlinearity: gauss, tanh, pow3, pow4")
-    var_norm = traits.Bool(argst="--vn",desc="switch off variance normalization")
-    pbsc = traits.Bool(argst="--pbsc",desc="switch off conversion to percent BOLD signal change")
-    cov_weight = traits.Float(argst="--covarweight=%f",desc="voxel-wise weights for the covariance "\
+    non_linearity = traits.Str(argstr="--nl=%s", desc="nonlinearity: gauss, tanh, pow3, pow4")
+    var_norm = traits.Bool(argstr="--vn", desc="switch off variance normalization")
+    pbsc = traits.Bool(argstr="--pbsc", desc="switch off conversion to percent BOLD signal change")
+    cov_weight = traits.Float(argstr="--covarweight=%f", desc="voxel-wise weights for the covariance "\
                               "matrix (e.g. segmentation information)")
-    epsilon = traits.Float(argst="--eps=%f",desc="minimum error change")
-    epsilonS = traits.Float(argst="--epsS=%f",desc="minimum error change for rank-1 approximation in TICA")
-    maxit = traits.Int(argst="--maxit=%d",desc="maximum number of iterations before restart")
-    max_restart = traits.Int(argst="--maxrestart=%d",desc="maximum number of restarts")
-    mm_thresh = traits.Float(argst="--mmthresh=%f",desc="threshold for Mixture Model based inference")
-    no_mm = traits.Bool(argst="--no_mm",desc="switch off mixture modelling on IC maps")
-    ICs = File(exists=True,argst="--ICs=%s",desc="filename of the IC components file for mixture modelling")
-    mix = File(exists=True,argst="--mix=%s",desc="mixing matrix for mixture modelling / filtering")
-    smode = File(exists=True,argst="--smode=%s",desc="matrix of session modes for report generation")
-    rem_cmp = traits.List(traits.Int,argst="-f %d",desc="component numbers to remove")
-    report = traits.Bool(argst="--report",desc="generate Melodic web report")
-    bg_image = File(exists=True, argst="--bgimage=%s",desc="specify background image for report"\
+    epsilon = traits.Float(argstr="--eps=%f", desc="minimum error change")
+    epsilonS = traits.Float(argstr="--epsS=%f", desc="minimum error change for rank-1 approximation in TICA")
+    maxit = traits.Int(argstr="--maxit=%d", desc="maximum number of iterations before restart")
+    max_restart = traits.Int(argstr="--maxrestart=%d", desc="maximum number of restarts")
+    mm_thresh = traits.Float(argstr="--mmthresh=%f", desc="threshold for Mixture Model based inference")
+    no_mm = traits.Bool(argstr="--no_mm", desc="switch off mixture modelling on IC maps")
+    ICs = File(exists=True, argstr="--ICs=%s", desc="filename of the IC components file for mixture modelling")
+    mix = File(exists=True, argstr="--mix=%s", desc="mixing matrix for mixture modelling / filtering")
+    smode = File(exists=True, argstr="--smode=%s", desc="matrix of session modes for report generation")
+    rem_cmp = traits.List(traits.Int, argstr="-f %d", desc="component numbers to remove")
+    report = traits.Bool(argstr="--report", desc="generate Melodic web report")
+    bg_image = File(exists=True, argstr="--bgimage=%s", desc="specify background image for report"\
                     " (default: mean image)")
-    tr_sec = traits.Float(argst="--tr=%f",desc="TR in seconds")
-    log_power = traits.Bool(argst="--logPower",desc="calculate log of power for frequency spectrum")
-    t_des = File(exists=True, argst="--Tdes=%s",desc="design matrix across time-domain")
-    t_con = File(exists=True, argst="--Tcon=%s",desc="t-contrast matrix across time-domain")
-    s_des = File(exists=True, argst="--Sdes=%s",desc="design matrix across subject-domain")
-    s_con = File(exists=True, argst="--Scon=%s",desc="t-contrast matrix across subject-domain")
-    out_all = traits.Bool(argst="--Oall",desc="output everything")
-    out_unmix = traits.Bool(argst="--Ounmix",desc="output unmixing matrix")
-    out_stats = traits.Bool(argst="--Ostats",desc="output thresholded maps and probability maps")
-    out_pca = traits.Bool(argst="--Opca",desc="output PCA results")
-    out_white = traits.Bool(argst="--Owhite",desc="output whitening/dewhitening matrices")
-    out_orig = traits.Bool(argst="--Oorig",desc="output the original ICs")
-    out_mean = traits.Bool(argst="--Omean",desc="output mean volume")
-    report_maps = traits.Str(argst="--report_maps=%s",desc="control string for spatial map images (see slicer)")
-    remove_deriv = traits.Bool(argst="--remove_deriv",desc="removes every second entry in paradigm"\
+    tr_sec = traits.Float(argstr="--tr=%f", desc="TR in seconds")
+    log_power = traits.Bool(argstr="--logPower", desc="calculate log of power for frequency spectrum")
+    t_des = File(exists=True, argstr="--Tdes=%s", desc="design matrix across time-domain")
+    t_con = File(exists=True, argstr="--Tcon=%s", desc="t-contrast matrix across time-domain")
+    s_des = File(exists=True, argstr="--Sdes=%s", desc="design matrix across subject-domain")
+    s_con = File(exists=True, argstr="--Scon=%s", desc="t-contrast matrix across subject-domain")
+    out_all = traits.Bool(argstr="--Oall", desc="output everything")
+    out_unmix = traits.Bool(argstr="--Ounmix", desc="output unmixing matrix")
+    out_stats = traits.Bool(argstr="--Ostats", desc="output thresholded maps and probability maps")
+    out_pca = traits.Bool(argstr="--Opca", desc="output PCA results")
+    out_white = traits.Bool(argstr="--Owhite", desc="output whitening/dewhitening matrices")
+    out_orig = traits.Bool(argstr="--Oorig", desc="output the original ICs")
+    out_mean = traits.Bool(argstr="--Omean", desc="output mean volume")
+    report_maps = traits.Str(argstr="--report_maps=%s", desc="control string for spatial map images (see slicer)")
+    remove_deriv = traits.Bool(argstr="--remove_deriv", desc="removes every second entry in paradigm"\
                                " file (EV derivatives)")
-    out_dir = Directory(argst="-o %s",desc="output directory name")
+
 
 class MELODICOutputSpec(TraitedSpec):
     out_dir = Directory(exists=True)
+    report_dir = Directory(exists=True)
+
 
 class MELODIC(FSLCommand):
     """Multivariate Exploratory Linear Optimised Decomposition into Independent Components
@@ -1142,7 +1203,7 @@ class MELODIC(FSLCommand):
     >>> melodic_setup.inputs.out_dir = 'groupICA.out'
     >>> melodic_setup.run() # doctest: +SKIP
 
-    
+
     """
     input_spec = MELODICInputSpec
     output_spec = MELODICOutputSpec
@@ -1152,8 +1213,15 @@ class MELODIC(FSLCommand):
         outputs = self.output_spec().get()
         outputs['out_dir'] = self.inputs.out_dir
         if not isdefined(outputs['out_dir']):
-            outputs['out_dir'] = os.makedirs(os.path.join(os.getcwd(),'melodic_out'))
+            outputs['out_dir'] = self._gen_filename("out_dir")
+        if isdefined(self.inputs.report) and self.inputs.report:
+            outputs['report_dir'] = os.path.join(self._gen_filename("out_dir"), "report")
         return outputs
+
+    def _gen_filename(self, name):
+        if name == "out_dir":
+            return os.getcwd()
+
 
 class SmoothEstimateInputSpec(FSLCommandInputSpec):
     dof = traits.Int(argstr='--dof=%d', mandatory=True,
@@ -1169,36 +1237,39 @@ class SmoothEstimateInputSpec(FSLCommandInputSpec):
                       exists=True, xor=['dof'],
                       desc='zstat image file')
 
+
 class SmoothEstimateOutputSpec(TraitedSpec):
     dlh = traits.Float(desc='smoothness estimate sqrt(det(Lambda))')
     volume = traits.Int(desc='number of voxels in mask')
     resels = traits.Float(desc='number of resels')
+
 
 class SmoothEstimate(FSLCommand):
     """ Estimates the smoothness of an image
 
     Examples
     --------
-    
+
     >>> est = SmoothEstimate()
     >>> est.inputs.zstat_file = 'zstat1.nii.gz'
     >>> est.inputs.mask_file = 'mask.nii'
     >>> est.cmdline
     'smoothest --mask=mask.nii --zstat=zstat1.nii.gz'
-    
+
     """
 
     input_spec = SmoothEstimateInputSpec
     output_spec = SmoothEstimateOutputSpec
     _cmd = 'smoothest'
 
-    def aggregate_outputs(self, runtime=None):
+    def aggregate_outputs(self, runtime=None, needed_outputs=None):
         outputs = self._outputs()
         stdout = runtime.stdout.split('\n')
         outputs.dlh = float(stdout[0].split()[1])
         outputs.volume = int(stdout[1].split()[1])
         outputs.resels = float(stdout[2].split()[1])
         return outputs
+
 
 class ClusterInputSpec(FSLCommandInputSpec):
     in_file = File(argstr='--in=%s', mandatory=True,
@@ -1231,7 +1302,7 @@ class ClusterInputSpec(FSLCommandInputSpec):
                                   argstr='--opvals=%s',
                                   desc='filename for image output of log pvals')
     pthreshold = traits.Float(argstr='--pthresh=%.10f',
-                              requires=['dlh','volume'],
+                              requires=['dlh', 'volume'],
                               desc='p-threshold for clusters')
     peak_distance = traits.Float(argstr='--peakdist=%.10f',
                                  desc='minimum distance between local maxima/minima, in mm (default 0)')
@@ -1259,6 +1330,7 @@ class ClusterInputSpec(FSLCommandInputSpec):
     warpfield_file = File(argstr='--warpvol=%s',
                           desc='file contining warpfield')
 
+
 class ClusterOutputSpec(TraitedSpec):
     index_file = File(desc='output of cluster index (in size order)')
     threshold_file = File(desc='thresholded image')
@@ -1268,26 +1340,27 @@ class ClusterOutputSpec(TraitedSpec):
     max_file = File(desc='filename for output of max image')
     mean_file = File(desc='filename for output of mean image')
     pval_file = File(desc='filename for image output of log pvals')
-    
+
+
 class Cluster(FSLCommand):
     """ Uses FSL cluster to perform clustering on statistical output
 
     Examples
     --------
-    
+
     >>> cl = Cluster()
     >>> cl.inputs.threshold = 2.3
     >>> cl.inputs.in_file = 'zstat1.nii.gz'
     >>> cl.inputs.out_localmax_txt_file = 'stats.txt'
     >>> cl.cmdline
     'cluster --in=zstat1.nii.gz --olmax=stats.txt --thresh=2.3000000000'
-    
+
     """
     input_spec = ClusterInputSpec
     output_spec = ClusterOutputSpec
     _cmd = 'cluster'
-    
-    filemap = {'out_index_file':'index', 'out_threshold_file':'threshold',
+
+    filemap = {'out_index_file': 'index', 'out_threshold_file':'threshold',
                'out_localmax_txt_file': 'localmax.txt',
                'out_localmax_vol_file': 'localmax',
                'out_size_file': 'size', 'out_max_file': 'max',
@@ -1305,7 +1378,7 @@ class Cluster(FSLCommand):
                         if suffix.endswith('.txt'):
                             change_ext=False
                         outputs[outkey] = self._gen_fname(self.inputs.in_file,
-                                                          suffix='_'+suffix,
+                                                          suffix='_' + suffix,
                                                           change_ext=change_ext)
                 else:
                     outputs[outkey] = inval
@@ -1319,3 +1392,77 @@ class Cluster(FSLCommand):
                 fname = value
             return spec.argstr % fname
         return super(Cluster, self)._format_arg(name, spec, value)
+
+
+class RandomiseInputSpec(FSLCommandInputSpec):
+    in_file = File(exists=True, desc='4D input file', argstr='-i %s', position=0, mandatory=True)
+    base_name = traits.Str('tbss_', desc='the rootname that all generated files will have',
+                          argstr='-o %s', position=1, usedefault=True)
+    design_mat = File(exists=True, desc='design matrix file', argstr='-d %s', position=2, mandatory=True)
+    tcon = File(exists=True, desc='t contrasts file', argstr='-t %s', position=3, mandatory=True)
+    fcon = File(exists=True, desc='f contrasts file', argstr='-f %s')
+    mask = File(exists=True, desc='mask image', argstr='-m %s')
+    x_block_labels = File(exists=True, desc='exchangeability block labels file', argstr='-e %s')
+    demean = traits.Bool(desc='demean data temporally before model fitting', argstr='-D')
+    one_sample_group_mean =  traits.Bool(desc='perform 1-sample group-mean test instead of generic permutation test',
+                                  argstr='-l')
+    show_total_perms = traits.Bool(desc='print out how many unique permutations would be generated and exit',
+                                 argstr='-q')
+    show_info_parallel_mode = traits.Bool(desc='print out information required for parallel mode and exit',
+                                  argstr='-Q')
+    vox_p_values = traits.Bool(desc='output voxelwise (corrected and uncorrected) p-value images',
+                            argstr='-x')
+    tfce = traits.Bool(desc='carry out Threshold-Free Cluster Enhancement', argstr='-T')
+    tfce2D = traits.Bool(desc='carry out Threshold-Free Cluster Enhancement with 2D optimisation',
+                         argstr='--T2')
+    f_only = traits.Bool(desc='calculate f-statistics only', argstr='--f_only')
+    raw_stats_imgs = traits.Bool(desc='output raw ( unpermuted ) statistic images', argstr='-R')
+    p_vec_n_dist_files = traits.Bool(desc='output permutation vector and null distribution text files',
+                                 argstr='-P')
+    num_perm = traits.Int(argstr='-n %d', desc='number of permutations (default 5000, set to 0 for exhaustive)')
+    seed = traits.Int(argstr='--seed %d', desc='specific integer seed for random number generator')
+    var_smooth = traits.Int(argstr='-v %d', desc='use variance smoothing (std is in mm)')
+    c_thresh = traits.Float(argstr='-c %.2f', desc='carry out cluster-based thresholding')
+    cm_thresh = traits.Float(argstr='-C %.2f', desc='carry out cluster-mass-based thresholding')
+    f_c_thresh = traits.Float(argstr='-F %.2f', desc='carry out f cluster thresholding')
+    f_cm_thresh = traits.Float(argstr='-S %.2f', desc='carry out f cluster-mass thresholding')
+    tfce_H = traits.Float(argstr='--tfce_H %.2f', desc='TFCE height parameter (default=2)')
+    tfce_E = traits.Float(argstr='--tfce_E %.2f', desc='TFCE extent parameter (default=0.5)')
+    tfce_C = traits.Float(argstr='--tfce_C %.2f', desc='TFCE connectivity (6 or 26; default=6)')
+    vxl = traits.List(traits.Int, argstr='--vxl %d', desc='list of numbers indicating voxelwise EVs' +
+                      'position in the design matrix (list order corresponds to files in vxf option)')
+    vxf = traits.List(traits.Int, argstr='--vxf %d', desc='list of 4D images containing voxelwise EVs' +
+                      '(list order corresponds to numbers in vxl option)')
+
+
+class RandomiseOutputSpec(TraitedSpec):
+    tstat1_file = File(exists=True, desc='path/name of tstat image corresponding to the first t contrast')
+
+
+class Randomise(FSLCommand):
+    """XXX UNSTABLE DO NOT USE
+
+    FSL Randomise: feeds the 4D projected FA data into GLM
+    modelling and thresholding
+    in order to find voxels which correlate with your model
+
+    Example
+    -------
+    >>> import nipype.interfaces.fsl as fsl
+    >>> rand = fsl.Randomise(in_file='allFA.nii', \
+    mask = 'mask.nii', \
+    tcon='design.con', \
+    design_mat='design.mat')
+    >>> rand.cmdline
+    'randomise -i allFA.nii -o tbss_ -d design.mat -t design.con -m mask.nii'
+
+    """
+
+    _cmd = 'randomise'
+    input_spec = RandomiseInputSpec
+    output_spec = RandomiseOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['tstat1_file'] = self._gen_fname(self.inputs.base_name, suffix='_tstat1')
+        return outputs
