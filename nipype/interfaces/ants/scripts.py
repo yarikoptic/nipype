@@ -9,7 +9,7 @@ import os
 import warnings
 from nipype.utils.filemanip import fname_presuffix, split_filename
 from nipype.interfaces.base import CommandLineInputSpec, CommandLine, traits, TraitedSpec, File, InputMultiPath, Directory
-from nipype.utils.misc import isdefined
+from nipype.interfaces.traits_extension import isdefined
 
 def ANTSScript(func):
     """Base support for ANTS scripts

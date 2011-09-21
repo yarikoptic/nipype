@@ -6,9 +6,11 @@ See the docstrings of the individual classes for examples.
 from glob import glob
 import os
 import warnings
+
 from nipype.utils.filemanip import fname_presuffix, split_filename
-from nipype.interfaces.base import CommandLineInputSpec, CommandLine, traits, TraitedSpec, File, InputMultiPath
-from nipype.utils.misc import isdefined
+from nipype.interfaces.base import (CommandLineInputSpec, CommandLine,
+                                    traits, TraitedSpec, File, InputMultiPath)
+from nipype.interfaces.traits_extension import isdefined
 
 warn = warnings.warn
 warnings.filterwarnings('always', category=UserWarning)
