@@ -44,48 +44,25 @@ class BuildTemplateInputSpec(CommandLineInputSpec):
         desc='List of images in the current directory, eg *_t1.nii.gz. Should be at the end' \
           'of the command.', copyfile=True)
 
-    similarity_metric = traits.Enum('CC', 'MI', 'SMI', 'PR', 'MSQ', 'PSE', 'JTB', argstr='-s %s',
-                                desc='Intensity-Based Metrics'\
-        'CC/cross-correlation/CrossCorrelation[fixedImage,movingImage,weight,radius/OrForMI-#histogramBins]'\
-        'MI/mutual-information/MutualInformation[fixedImage,movingImage,weight,radius/OrForMI-#histogramBins]'\
-        'SMI/spatial-mutual-information/SpatialMutualInformation[fixedImage,movingImage,weight,radius/OrForMI-#histogramBins]'\
-        'PR/probabilistic/Probabilistic[fixedImage,movingImage,weight,radius/OrForMI-#histogramBins]'\
-        'MSQ/mean-squares/MeanSquares -- radius > 0 uses moving image gradient in metric'\
-        'deriv.[fixedImage,movingImage,weight,radius/OrForMI-#histogramBins]'\
-        'Point-Set-Based Metrics:'\
-        'PSE/point-set-expectation/PointSetExpectation'\
-        '[fixedImage,movingImage,fixedPoints,movingPoints,weight,'\
-        'pointSetPercentage,pointSetSigma,boundaryPointsOnly,kNeighborhood,'\
-        'PartialMatchingIterations=100000]'\
-        'the partial matching option assumes the complete labeling is in the first set of label'\
-        'parameters ... more iterations leads to more symmetry in the matching - 0 iterations'\
-        'means full asymmetry'\
-        'JTB/jensen-tsallis-bspline/JensenTsallisBSpline'\
-        '[fixedImage,movingImage,fixedPoints,movingPoints,weight,pointSetPercentage,pointSetSigma,boundaryPointsOnly,kNeighborhood,'\
-        'alpha,meshResolution,splineOrder,numberOfLevels,useAnisotropicCovariances]')
+    similarity_metric = traits.Enum('CC', 'MI', 'SMI', 'PR', 'MSQ', 'PSE', 'JTB',
+        argstr='-s %s',
+        desc='Similarity metric. See ANTS? for the details')
 
     transformation_model = traits.Enum('GR', 'Diff', 'Elast', 'Exp', 'SyN', usedefault=True,
         argstr='-t %s',
-       desc='TRANSFORMATION'\
-       '[gradient-step-length,number-of-time-steps,DeltaTime,symmetry-type].'\
-       'Choose one of the following TRANSFORMATIONS:'\
-       'Diff = diffeomorphic'\
-       'Elast = Elastic'\
-       'Exp = exponential diff'\
-       'Greedy Exp = greedy exponential diff, like diffeomorphic demons. same parameters. '\
-       'SyN -- symmetric normalization'\
-       'DeltaTime is the integration time-discretization step - sub-voxel - n-time steps' \
-       'currently fixed at 2')
+        desc='Transformation model. See ANTS? for the details')
 
     output_prefix = traits.Str('template_', argstr='-o %s', position=2, usedefault=True,
         desc='A prefix that is prepended to all output files.')
 
     target_volume = File(exists=True, argstr='-z %s',
-        desc='Use this this volume as the target of all inputs. When not used, the script'\
+        desc='Use this this volume as the target of all inputs. When not used, the script '
             'will create an unbiased starting point by averaging all inputs. Use the full path!')
 
-    parallel_computation = traits.Enum('0', '1', '2', argstr='-c %s', mandatory=True, usedefault=True,
-        desc='Control for parallel computation (default 0) -- 0 == run serially,  1 == SGE qsub,  2 == use PEXEC (localhost)')
+    parallel_computation = traits.Enum(0, 1, 2,
+        argstr='-c %s', mandatory=True, usedefault=True,
+        desc='Control for parallel computation (default 0) '
+             '-- 0 == run serially, 1 == SGE qsub, 2 == use PEXEC (localhost)')
 
     gradient_step_size = traits.Float(0.25, argstr='-g %d', usedefault=True,
         desc='Gradient step size (default 0.25) -- smaller magnitude results in more cautious steps')
@@ -93,9 +70,11 @@ class BuildTemplateInputSpec(CommandLineInputSpec):
     iteration_limit = traits.Int(4, argstr='-i %d', usedefault=True,
         desc='Iteration limit (default 4) -- iterations of the template construction (Iteration limit)*NumImages registrations.')
 
-    rigid_registration = traits.Enum(0, 1, argstr='-r %d', mandatory=True, usedefault=True,
-        desc='Do rigid-body registration of inputs before creating template (default 0) -- 0 == off 1 == on. Only useful when'\
-        'you do not have an initial template')
+    rigid_registration = traits.Enum(0, 1,
+        argstr='-r %d', mandatory=True, usedefault=True,
+        desc='Do rigid-body registration of inputs before creating template '
+             '(default 0) -- 0 == off 1 == on. Only useful when you do not '
+             'have an initial template')
 
     number_of_cores = traits.Int(argstr='-j %d',
         desc='Number of cpu cores to use (default: 2; -- requires "-c 2" (PEXEC)')
@@ -144,7 +123,8 @@ class BuildTemplate(CommandLine):
         return super(BuildTemplate, self)._format_arg(name, spec, value)
 
 class SimpleANTSInputSpec(CommandLineInputSpec):
-    image_dimension = traits.Enum(3, 2, argstr='%d', mandatory=True, usedefault=True, position=1,
+    image_dimension = traits.Enum(3, 2,
+        argstr='%d', mandatory=True, usedefault=True, position=1,
         desc='ImageDimension: 2 or 3 (for 2 or 3 Dimensional registration)')
 
     fixed_image = File(exists=True, argstr='%s', mandatory=True, position=2,

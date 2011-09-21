@@ -26,7 +26,7 @@ class ANTSInputSpec(CommandLineInputSpec):
 
     image_metric = traits.Enum('CC', 'MI', 'SMI', 'PR', 'MSQ', 'PSE', 'JTB',
         argstr='--image-metric %s',
-        desc='Image Metric. See ANTS description (ANTS?) for the details')
+        desc='Similarity metric. See ANTS description (ANTS?) for the details')
 
     mask_file = File(exists=True, argstr='--mask-image %s',
         desc='this mask -- defined in the fixed image space defines the region '
@@ -182,9 +182,11 @@ class ANTSOutputSpec(TraitedSpec):
 class ANTS(CommandLine):
     """ ANTS main module
 
-    Intensity-based metrics
-    -----------------------
+    Similarity Metrics
+    ==================
 
+    Intensity-based
+    ---------------
     CC/cross-correlation/CrossCorrelation
         [fixedImage,movingImage,weight,radius/OrForMI-#histogramBins]
     MI/mutual-information/MutualInformation
@@ -197,9 +199,8 @@ class ANTS(CommandLine):
         radius > 0 uses moving image gradient in metric
     deriv.[fixedImage,movingImage,weight,radius/OrForMI-#histogramBins]
 
-    Point-Set-Based Metrics
-    -----------------------
-
+    Point-Set-Based
+    ---------------
     PSE/point-set-expectation/PointSetExpectation
         [fixedImage,movingImage,fixedPoints,movingPoints,weight,
         pointSetPercentage,pointSetSigma,boundaryPointsOnly,kNeighborhood,
@@ -212,6 +213,26 @@ class ANTS(CommandLine):
          pointSetPercentage,pointSetSigma,boundaryPointsOnly,
          kNeighborhood,alpha,meshResolution,splineOrder,numberOfLevels,
          useAnisotropicCovariances]
+
+    Transformations
+    ===============
+
+    [gradient-step-length,number-of-time-steps,DeltaTime,symmetry-type]
+
+    Diff
+        diffeomorphic
+    Elast
+        Elastic
+    Exp
+        exponential diff
+    Greedy Exp
+        greedy exponential diff, like diffeomorphic. same parameters
+    SyN
+        symmetric normalization
+
+    DeltaTime is the integration time-discretization step - sub-voxel - n-time steps
+    currently fixed at 2
+
     """
 
     _cmd = 'ANTS'
