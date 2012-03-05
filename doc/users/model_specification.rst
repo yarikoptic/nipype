@@ -4,7 +4,7 @@
  Model Specification for First Level fMRI Analysis
 ===================================================
 
-NiPyPE provides a general purpose model specification mechanism with
+Nipype provides a general purpose model specification mechanism with
 specialized subclasses for package specific extensions.
 
 
@@ -81,8 +81,8 @@ or with amplitudes::
 
 Together with this information, one needs to specify:
 
-- whether the durations and event onsets are specified in terms of scan volumes or
-secs.
+- whether the durations and event onsets are specified in terms of scan volumes
+  or secs.
 
 - the high-pass filter cutoff, 
 

@@ -21,7 +21,7 @@ import numpy as np
 # Local imports
 from nipype.interfaces.base import (OutputMultiPath, TraitedSpec, isdefined,
                                     traits, InputMultiPath, File)
-from nipype.interfaces.spm.base import (SPMCommand, scans_for_fname, 
+from nipype.interfaces.spm.base import (SPMCommand, scans_for_fname,
                                         func_is_3d,
                                         scans_for_fnames, SPMCommandInputSpec)
 from nipype.utils.filemanip import (fname_presuffix, filename_to_list,
@@ -48,13 +48,15 @@ class SliceTimingInputSpec(SPMCommandInputSpec):
     ref_slice = traits.Int(field='refslice',
                            desc='1-based Number of the reference slice',
                            mandatory=True)
+    out_prefix = traits.String('a', field='prefix', usedefault=True,
+                               desc = 'slicetimed output prefix')
 
 class SliceTimingOutputSpec(TraitedSpec):
     timecorrected_files = OutputMultiPath(File(exist=True, desc='slice time corrected files'))
 
 class SliceTiming(SPMCommand):
     """Use spm to perform slice timing correction.
-    
+
     http://www.fil.ion.ucl.ac.uk/spm/doc/manual.pdf#page=19
 
     Examples
@@ -69,12 +71,12 @@ class SliceTiming(SPMCommand):
     >>> st.inputs.slice_order = range(32,0,-1)
     >>> st.inputs.ref_slice = 1
     >>> st.run() # doctest: +SKIP
-    
+
     """
 
     input_spec = SliceTimingInputSpec
     output_spec = SliceTimingOutputSpec
-    
+
     _jobtype = 'temporal'
     _jobname = 'st'
 
@@ -97,7 +99,8 @@ class SliceTiming(SPMCommand):
             run = []
             if isinstance(f,list):
                 for inner_f in filename_to_list(f):
-                    run.append(fname_presuffix(inner_f, prefix='a'))
+                    run.append(fname_presuffix(inner_f,
+                                               prefix=self.inputs.out_prefix))
             else:
                 realigned_run = fname_presuffix(f, prefix='a')
             outputs['timecorrected_files'].append(realigned_run)
@@ -122,18 +125,20 @@ class RealignInputSpec(SPMCommandInputSpec):
                              desc='filename of weighting image')
     interp = traits.Range(low=0, high=7, field='eoptions.interp',
                           desc='degree of b-spline used for interpolation')
-    wrap = traits.Tuple(traits.Int, traits.Int, traits.Int,
+    wrap = traits.List(traits.Int(), minlen=3, maxlen=3,
                         field='eoptions.wrap',
                         desc='Check if interpolation should wrap in [x,y,z]')
     write_which = traits.Tuple(traits.Int, traits.Int, field='roptions.which',
                               desc='determines which images to reslice')
     write_interp = traits.Range(low=0, high=7, field='roptions.interp',
                          desc='degree of b-spline used for interpolation')
-    write_wrap = traits.Tuple(traits.Int, traits.Int, traits.Int,
+    write_wrap = traits.List(traits.Int(), minlen=3, maxlen=3,
                               field='roptions.wrap',
                    desc='Check if interpolation should wrap in [x,y,z]')
     write_mask = traits.Bool(field='roptions.mask',
                              desc='True/False mask output image')
+    out_prefix = traits.String('r', field='prefix', usedefault=True,
+                               desc = 'realigned output prefix')
 
 
 class RealignOutputSpec(TraitedSpec):
@@ -144,7 +149,7 @@ class RealignOutputSpec(TraitedSpec):
 
 class Realign(SPMCommand):
     """Use spm_realign for estimating within modality rigid body alignment
-    
+
     http://www.fil.ion.ucl.ac.uk/spm/doc/manual.pdf#page=25
 
     Examples
@@ -201,16 +206,16 @@ class Realign(SPMCommand):
                 first_image = self.inputs.in_files[0][0]
             else:
                 first_image = self.inputs.in_files[0]
-                
+
             outputs['mean_image'] = fname_presuffix(first_image, prefix='mean')
             outputs['realigned_files'] = []
             for imgf in filename_to_list(self.inputs.in_files):
                 realigned_run = []
                 if isinstance(imgf,list):
                     for inner_imgf in filename_to_list(imgf):
-                        realigned_run.append(fname_presuffix(inner_imgf, prefix='r'))
+                        realigned_run.append(fname_presuffix(inner_imgf, prefix=self.inputs.out_prefix))
                 else:
-                    realigned_run = fname_presuffix(imgf, prefix='r')
+                    realigned_run = fname_presuffix(imgf, prefix=self.inputs.out_prefix)
                 outputs['realigned_files'].append(realigned_run)
         return outputs
 
@@ -241,11 +246,14 @@ class CoregisterInputSpec(SPMCommandInputSpec):
                         desc='acceptable tolerance for each of 12 params')
     write_interp = traits.Range(low=0, hign=7, field='roptions.interp',
                         desc='degree of b-spline used for interpolation')
-    write_wrap = traits.List(traits.Bool(), minlen=3, maxlen=3,
+    write_wrap = traits.List(traits.Int(), minlen=3, maxlen=3,
                              field='roptions.wrap',
                      desc='Check if interpolation should wrap in [x,y,z]')
     write_mask = traits.Bool(field='roptions.mask',
                              desc='True/False mask output image')
+    out_prefix = traits.String('r', field='roptions.prefix', usedefault=True,
+                               desc = 'coregistered output prefix')
+
 
 class CoregisterOutputSpec(TraitedSpec):
     coregistered_source = OutputMultiPath(File(exists=True),
@@ -255,18 +263,18 @@ class CoregisterOutputSpec(TraitedSpec):
 
 class Coregister(SPMCommand):
     """Use spm_coreg for estimating cross-modality rigid body alignment
-    
+
     http://www.fil.ion.ucl.ac.uk/spm/doc/manual.pdf#page=39
 
     Examples
     --------
-    
+
     >>> import nipype.interfaces.spm as spm
     >>> coreg = spm.Coregister()
     >>> coreg.inputs.target = 'functional.nii'
     >>> coreg.inputs.source = 'structural.nii'
     >>> coreg.run() # doctest: +SKIP
-    
+
     """
 
     input_spec = CoregisterInputSpec
@@ -281,7 +289,7 @@ class Coregister(SPMCommand):
             return scans_for_fnames(filename_to_list(val),
                                     keep4d=True)
         if opt == 'apply_to_files':
-            return scans_for_fnames(filename_to_list(val))
+            return np.array(filename_to_list(val), dtype=object)
         if opt == 'source' and self.inputs.jobtype == "write":
             if isdefined(self.inputs.apply_to_files):
                 return scans_for_fnames(val+self.inputs.apply_to_files)
@@ -310,11 +318,11 @@ class Coregister(SPMCommand):
             if isdefined(self.inputs.apply_to_files):
                 outputs['coregistered_files'] = []
                 for imgf in filename_to_list(self.inputs.apply_to_files):
-                    outputs['coregistered_files'].append(fname_presuffix(imgf, prefix='r'))
+                    outputs['coregistered_files'].append(fname_presuffix(imgf, prefix=self.inputs.out_prefix))
 
             outputs['coregistered_source'] = []
             for imgf in filename_to_list(self.inputs.source):
-                outputs['coregistered_source'].append(fname_presuffix(imgf, prefix='r'))
+                outputs['coregistered_source'].append(fname_presuffix(imgf, prefix=self.inputs.out_prefix))
 
         return outputs
 
@@ -327,8 +335,8 @@ class NormalizeInputSpec(SPMCommandInputSpec):
                             desc='file to normalize to template',
                             xor=['parameter_file'],
                             mandatory=True, copyfile=True)
-    jobtype = traits.Enum('estwrite', 'estimate', 'write',
-                          desc='one of: estimate, write, estwrite (opt, estwrite)',
+    jobtype = traits.Enum('estwrite', 'est', 'write',
+                          desc='one of: est, write, estwrite (opt, estwrite)',
                           usedefault=True)
     apply_to_files = InputMultiPath(File(exists=True), field='subj.resample',
                                desc='files to apply transformation to (opt)', copyfile=True)
@@ -353,12 +361,15 @@ class NormalizeInputSpec(SPMCommandInputSpec):
                                             desc='the amount of the regularization for the nonlinear part of the normalization (opt)')
     write_preserve = traits.Bool(field='roptions.preserve',
                      desc='True/False warped images are modulated (opt,)')
-    write_bounding_box = traits.List(traits.Float(), field='roptions.bb', minlen=6, maxlen=6, desc='6-element list (opt)')
+    write_bounding_box = traits.List(traits.List(traits.Float(), minlen=3, maxlen=3), field='roptions.bb', minlen=2, maxlen=2, desc='3x2-element list of lists (opt)')
     write_voxel_sizes = traits.List(traits.Float(), field='roptions.vox', minlen=3, maxlen=3, desc='3-element list (opt)')
     write_interp = traits.Range(low=0, hign=7, field='roptions.interp',
                         desc='degree of b-spline used for interpolation')
-    write_wrap = traits.List(traits.Bool(), field='roptions.wrap',
+    write_wrap = traits.List(traits.Int(), field='roptions.wrap',
                         desc='Check if interpolation should wrap in [x,y,z] - list of bools (opt)')
+
+    out_prefix = traits.String('w', field='roptions.prefix', usedefault=True,
+                               desc = 'normalized output prefix')
 
 
 class NormalizeOutputSpec(TraitedSpec):
@@ -368,7 +379,7 @@ class NormalizeOutputSpec(TraitedSpec):
 
 class Normalize(SPMCommand):
     """use spm_normalise for warping an image to a template
-    
+
     http://www.fil.ion.ucl.ac.uk/spm/doc/manual.pdf#page=51
 
     Examples
@@ -377,7 +388,7 @@ class Normalize(SPMCommand):
     >>> norm = spm.Normalize()
     >>> norm.inputs.source = 'functional.nii'
     >>> norm.run() # doctest: +SKIP
-    
+
     """
 
     input_spec = NormalizeInputSpec
@@ -436,12 +447,12 @@ class Normalize(SPMCommand):
             outputs['normalized_files'] = []
             if isdefined(self.inputs.apply_to_files):
                 for imgf in filename_to_list(self.inputs.apply_to_files):
-                    outputs['normalized_files'].append(fname_presuffix(imgf, prefix='w'))
+                    outputs['normalized_files'].append(fname_presuffix(imgf, prefix=self.inputs.out_prefix))
 
             if isdefined(self.inputs.source):
                 outputs['normalized_source'] = []
                 for imgf in filename_to_list(self.inputs.source):
-                    outputs['normalized_source'].append(fname_presuffix(imgf, prefix='w'))
+                    outputs['normalized_source'].append(fname_presuffix(imgf, prefix=self.inputs.out_prefix))
 
         return outputs
 
@@ -449,34 +460,34 @@ class SegmentInputSpec(SPMCommandInputSpec):
     data = InputMultiPath(File(exists=True), field='data', desc='one scan per subject',
                           copyfile=False, mandatory=True)
     gm_output_type = traits.List(traits.Bool(), minlen=3, maxlen=3, field='output.GM',
-                                 desc="""Options to produce grey matter images: c1*.img, wc1*.img and mwc1*.img. 
-            None: [False,False,False], 
-            Native Space: [False,False,True], 
-            Unmodulated Normalised: [False,True,False], 
-            Modulated Normalised: [True,False,False], 
-            Native + Unmodulated Normalised: [False,True,True], 
-            Native + Modulated Normalised: [True,False,True], 
-            Native + Modulated + Unmodulated: [True,True,True], 
+                                 desc="""Options to produce grey matter images: c1*.img, wc1*.img and mwc1*.img.
+            None: [False,False,False],
+            Native Space: [False,False,True],
+            Unmodulated Normalised: [False,True,False],
+            Modulated Normalised: [True,False,False],
+            Native + Unmodulated Normalised: [False,True,True],
+            Native + Modulated Normalised: [True,False,True],
+            Native + Modulated + Unmodulated: [True,True,True],
             Modulated + Unmodulated Normalised: [True,True,False]""")
     wm_output_type = traits.List(traits.Bool(), minlen=3, maxlen=3, field='output.WM',
-                                 desc="""Options to produce white matter images: c2*.img, wc2*.img and mwc2*.img.             
-            None: [False,False,False], 
-            Native Space: [False,False,True], 
-            Unmodulated Normalised: [False,True,False], 
-            Modulated Normalised: [True,False,False], 
-            Native + Unmodulated Normalised: [False,True,True], 
-            Native + Modulated Normalised: [True,False,True], 
-            Native + Modulated + Unmodulated: [True,True,True], 
+                                 desc="""Options to produce white matter images: c2*.img, wc2*.img and mwc2*.img.
+            None: [False,False,False],
+            Native Space: [False,False,True],
+            Unmodulated Normalised: [False,True,False],
+            Modulated Normalised: [True,False,False],
+            Native + Unmodulated Normalised: [False,True,True],
+            Native + Modulated Normalised: [True,False,True],
+            Native + Modulated + Unmodulated: [True,True,True],
             Modulated + Unmodulated Normalised: [True,True,False]""")
     csf_output_type = traits.List(traits.Bool(), minlen=3, maxlen=3, field='output.CSF',
-                                  desc="""Options to produce CSF images: c3*.img, wc3*.img and mwc3*.img.             
-            None: [False,False,False], 
-            Native Space: [False,False,True], 
-            Unmodulated Normalised: [False,True,False], 
-            Modulated Normalised: [True,False,False], 
-            Native + Unmodulated Normalised: [False,True,True], 
-            Native + Modulated Normalised: [True,False,True], 
-            Native + Modulated + Unmodulated: [True,True,True], 
+                                  desc="""Options to produce CSF images: c3*.img, wc3*.img and mwc3*.img.
+            None: [False,False,False],
+            Native Space: [False,False,True],
+            Unmodulated Normalised: [False,True,False],
+            Modulated Normalised: [True,False,False],
+            Native + Unmodulated Normalised: [False,True,True],
+            Native + Modulated Normalised: [True,False,True],
+            Native + Modulated + Unmodulated: [True,True,True],
             Modulated + Unmodulated Normalised: [True,True,False]""")
     save_bias_corrected = traits.Bool(field='output.biascor',
                      desc='True/False produce a bias corrected image')
@@ -518,7 +529,7 @@ class SegmentOutputSpec(TraitedSpec):
 class Segment(SPMCommand):
     """use spm_segment to separate structural images into different
     tissue classes.
-    
+
     http://www.fil.ion.ucl.ac.uk/spm/doc/manual.pdf#page=43
 
     Examples
@@ -527,7 +538,7 @@ class Segment(SPMCommand):
     >>> seg = spm.Segment()
     >>> seg.inputs.data = 'structural.nii'
     >>> seg.run() # doctest: +SKIP
-    
+
     """
 
     _jobtype = 'spatial'
@@ -585,7 +596,7 @@ class NewSegmentInputSpec(SPMCommandInputSpec):
                                 desc="""A tuple with the following fields:
             - bias reguralisation (0-10)
             - FWHM of Gaussian smoothness of bias
-            - which maps to save (Corrected, Field) - a tuple of two boolean values""", 
+            - which maps to save (Corrected, Field) - a tuple of two boolean values""",
             field='channel')
     tissues = traits.List(traits.Tuple(traits.Tuple(File(exists=True), traits.Int()), traits.Int(),
                                        traits.Tuple(traits.Bool, traits.Bool), traits.Tuple(traits.Bool, traits.Bool)),
@@ -593,7 +604,7 @@ class NewSegmentInputSpec(SPMCommandInputSpec):
             - tissue probability map (4D), 1-based index to frame
             - number of gaussians
             - which maps to save [Native, DARTEL] - a tuple of two boolean values
-            - which maps to save [Modulated, Unmodualted] - a tuple of two boolean values""", 
+            - which maps to save [Modulated, Unmodualted] - a tuple of two boolean values""",
             field='tissue')
     affine_regularization = traits.Enum('mni', 'eastern', 'subj', 'none', field='warp.affreg',
                       desc='mni, eastern, subj, none ')
@@ -612,13 +623,15 @@ class NewSegmentOutputSpec(TraitedSpec):
     transformation_mat = OutputMultiPath(File(exists=True), desc='Normalization transformation')
     bias_corrected_images = OutputMultiPath(File(exists=True), desc='bias corrected images')
     bias_field_images = OutputMultiPath(File(exists=True), desc='bias field images')
+    forward_deformation_field = OutputMultiPath(File(exists=True))
+    inverse_deformation_field = OutputMultiPath(File(exists=True))
 
 class NewSegment(SPMCommand):
     """Use spm_preproc8 (New Segment) to separate structural images into different
     tissue classes. Supports multiple modalities.
 
     NOTE: This interface currently supports single channel input only
-    
+
     http://www.fil.ion.ucl.ac.uk/spm/doc/manual.pdf#page=185
 
     Examples
@@ -673,6 +686,10 @@ class NewSegment(SPMCommand):
                 new_tissue['warped'] = [int(tissue[3][0]), int(tissue[3][1])]
                 new_tissues.append(new_tissue)
             return new_tissues
+        elif opt == 'write_deformation_fields':
+            return super(NewSegment, self)._format_arg(opt, spec, [int(val[0]), int(val[0])])
+        else:
+            return super(NewSegment, self)._format_arg(opt, spec, val)
 
     def _list_outputs(self):
         outputs = self._outputs().get()
@@ -683,6 +700,8 @@ class NewSegment(SPMCommand):
         outputs['transformation_mat'] = []
         outputs['bias_corrected_images'] = []
         outputs['bias_field_images'] = []
+        outputs['inverse_deformation_field'] = []
+        outputs['forward_deformation_field'] = []
 
         n_classes = 5
         if isdefined(self.inputs.tissues):
@@ -709,6 +728,13 @@ class NewSegment(SPMCommand):
                 for i in range(n_classes):
                     outputs['native_class_images'][i].append(os.path.join(pth,"c%d%s%s"%(i+1, base, ext)))
             outputs['transformation_mat'].append(os.path.join(pth, "%s_seg8.mat" % base))
+
+            if isdefined(self.inputs.write_deformation_fields):
+                if self.inputs.write_deformation_fields[0]:
+                    outputs['inverse_deformation_field'].append(os.path.join(pth, "iy_%s.nii" % base))
+                if self.inputs.write_deformation_fields[1]:
+                    outputs['forward_deformation_field'].append(os.path.join(pth, "y_%s.nii" % base))
+
             if isdefined(self.inputs.channel_info):
                 if self.inputs.channel_info[2][0]:
                     outputs['bias_corrected_images'].append(os.path.join(pth, "m%s%s" % (base, ext)))
@@ -721,13 +747,16 @@ class SmoothInputSpec(SPMCommandInputSpec):
     fwhm = traits.Either(traits.List(traits.Float(), minlen=3, maxlen=3), traits.Float(), field='fwhm', desc='3-list of fwhm for each dimension (opt)')
     data_type = traits.Int(field='dtype', desc='Data type of the output images (opt)')
     implicit_masking = traits.Bool(field='im', desc='A mask implied by a particular voxel value')
+    out_prefix = traits.String('s', field='prefix', usedefault=True,
+                               desc = 'smoothed output prefix')
+
 
 class SmoothOutputSpec(TraitedSpec):
     smoothed_files = OutputMultiPath(File(exists=True), desc='smoothed files')
 
 class Smooth(SPMCommand):
     """Use spm_smooth for 3D Gaussian smoothing of image volumes.
-    
+
     http://www.fil.ion.ucl.ac.uk/spm/doc/manual.pdf#page=57
 
     Examples
@@ -757,7 +786,7 @@ class Smooth(SPMCommand):
                     return val
             if opt == 'implicit_masking':
                 return int(val)
-            
+
         return val
 
     def _list_outputs(self):
@@ -765,7 +794,7 @@ class Smooth(SPMCommand):
         outputs['smoothed_files'] = []
 
         for imgf in filename_to_list(self.inputs.in_files):
-            outputs['smoothed_files'].append(fname_presuffix(imgf, prefix='s'))
+            outputs['smoothed_files'].append(fname_presuffix(imgf, prefix=self.inputs.out_prefix))
         return outputs
 
 
@@ -782,8 +811,8 @@ class DARTELInputSpec(SPMCommandInputSpec):
     iteration_parameters = traits.List(traits.Tuple(traits.Range(1,10), traits.Tuple(traits.Float, traits.Float, traits.Float),
                                                     traits.Enum(1,2,4,8,16,32,64,128,256,512),
                                                     traits.Enum(0,0.5,1,2,4,8,16,32)),
-                                       minlen=6,
-                                       maxlen=6,
+                                       minlen=3,
+                                       maxlen=12,
                                        field = 'warp.settings.param',
                                        desc="""List of tuples for each iteration
                                        - Inner iterations
@@ -948,7 +977,7 @@ class DARTELNorm2MNI(SPMCommand):
         prefix = "w"
         if isdefined(self.inputs.modulate) and self.inputs.modulate:
             prefix = 'm' + prefix
-        if isdefined(self.inputs.fwhm) and self.inputs.fwhm > 0:
+        if not isdefined(self.inputs.fwhm) or self.inputs.fwhm > 0:
             prefix = 's' + prefix
         for filename in self.inputs.apply_to_files:
             pth, base, ext = split_filename(filename)
@@ -956,4 +985,107 @@ class DARTELNorm2MNI(SPMCommand):
                                                                           base,
                                                                           ext)))
 
+        return outputs
+
+
+class CreateWarpedInputSpec(SPMCommandInputSpec):
+    image_files = InputMultiPath(File(exists=True),
+                              desc="A list of files to be warped",
+                              field='crt_warped.images', copyfile=False,
+                              mandatory=True)
+    flowfield_files = InputMultiPath(File(exists=True),
+                                     desc="DARTEL flow fields u_rc1*",
+                                     field='crt_warped.flowfields',
+                                     copyfile=False,
+                                     mandatory=True)
+    iterations = traits.Range(low=0, high=9,
+                desc="The number of iterations: log2(number of time steps)",
+                field='crt_warped.K',
+                )
+    interp = traits.Range(low=0, high=7, field='crt_warped.interp',
+                          desc='degree of b-spline used for interpolation')
+
+class CreateWarpedOutputSpec(TraitedSpec):
+    warped_files = traits.List(
+                File(exists=True, desc='final warped files'))
+
+class CreateWarped(SPMCommand):
+    """Apply a flow field estimated by DARTEL to create warped images
+
+    http://www.fil.ion.ucl.ac.uk/spm/doc/manual.pdf#page=202
+
+    Examples
+    --------
+    >>> import nipype.interfaces.spm as spm
+    >>> create_warped = spm.CreateWarped()
+    >>> create_warped.inputs.image_files = ['rc1s1.nii', 'rc1s2.nii']
+    >>> create_warped.inputs.flowfield_files = ['u_rc1s1_Template.nii', 'u_rc1s2_Template.nii']
+    >>> create_warped.run() # doctest: +SKIP
+
+    """
+
+    input_spec = CreateWarpedInputSpec
+    output_spec = CreateWarpedOutputSpec
+    _jobtype = 'tools'
+    _jobname = 'dartel'
+
+    def _format_arg(self, opt, spec, val):
+        """Convert input to appropriate format for spm
+        """
+
+        if opt in ['image_files']:
+            return scans_for_fnames(val, keep4d=True,
+                                    separate_sessions=True)
+        if opt in ['flowfield_files']:
+            return scans_for_fnames(val, keep4d=True)
+        else:
+            return val
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs['warped_files'] = []
+        for filename in self.inputs.image_files:
+            pth, base, ext = split_filename(filename)
+            outputs['warped_files'].append(os.path.realpath('w%s%s'%(base,
+                                                            ext)))
+        return outputs
+
+class ApplyDeformationFieldInputSpec(SPMCommandInputSpec):
+    in_files = InputMultiPath(File(exists=True), mandatory=True, field='fnames')
+    deformation_field = File(exists=True, mandatory=True, field='comp{1}.def' )
+    reference_volume = File(exists=True, mandatory=True, field='comp{2}.id.space')
+    interp = traits.Range(low=0, high=7, field='interp',
+                          desc='degree of b-spline used for interpolation')
+
+
+class ApplyDeformationFieldOutputSpec(TraitedSpec):
+    out_files = OutputMultiPath(File(exists=True))
+
+class ApplyDeformations(SPMCommand):
+    input_spec = ApplyDeformationFieldInputSpec
+    output_spec = ApplyDeformationFieldOutputSpec
+
+    _jobtype = 'util'
+    _jobname = 'defs'
+
+    def _format_arg(self, opt, spec, val):
+        """Convert input to appropriate format for spm
+        """
+        if opt in ['deformation_field', 'reference_volume']:
+            val = [val]
+
+        if opt in ['deformation_field']:
+            return scans_for_fnames(val, keep4d=True, separate_sessions=False)
+        if opt in ['in_files', 'reference_volume']:
+            return scans_for_fnames(val, keep4d=False, separate_sessions=False)
+
+        else:
+            return super(ApplyDeformations, self)._format_arg(opt, spec, val)
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs['out_files'] = []
+        for filename in self.inputs.in_files:
+            _, fname = os.path.split(filename)
+            outputs['out_files'].append(os.path.realpath('w%s'%fname))
         return outputs

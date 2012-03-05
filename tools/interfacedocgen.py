@@ -20,44 +20,18 @@ PyMVPA project, which we've adapted for NIPY use.  PyMVPA is an MIT-licensed
 project."""
 
 # Stdlib imports
+import inspect
 import os
 import re
 import sys
-
-from nipype.interfaces.base import CommandLine, TraitError
-import warnings
-from nipype.pipeline.engine import Workflow
 import tempfile
+import warnings
 
-def trim(docstring, marker):
-    if not docstring:
-        return ''
-    # Convert tabs to spaces (following the normal Python rules)
-    # and split into a list of lines:
-    lines = docstring.expandtabs().splitlines()
-    # Determine minimum indentation (first line doesn't count):
-    indent = sys.maxint
-    for line in lines[1:]:
-        stripped = line.lstrip()
-        if stripped:
-            indent = min(indent, len(line) - len(stripped))
-    # Remove indentation (first line is special):
-    trimmed = [lines[0].strip()]
-    if indent < sys.maxint:
-        for line in lines[1:]:
-            # replace existing REST marker with doc level marker
-            stripped = line.lstrip().strip().rstrip()
-            if stripped and all([s==stripped[0] for s in stripped]):
-                line = line.replace(stripped[0], marker)
-            trimmed.append(line[indent:].rstrip())
-    # Strip off trailing and leading blank lines:
-    while trimmed and not trimmed[-1]:
-        trimmed.pop()
-    while trimmed and not trimmed[0]:
-        trimmed.pop(0)
-    # Return a single string:
-    return '\n'.join(trimmed)
+from nipype.interfaces.base import BaseInterface
+from nipype.pipeline.engine import Workflow
+from nipype.utils.misc import trim
 
+from github import create_hash_map, get_file_url
 
 # Functions and classes
 class InterfaceHelpWriter(object):
@@ -102,7 +76,7 @@ class InterfaceHelpWriter(object):
         class_skip_patterns : None or sequence
             Sequence of strings giving classes to be excluded
             Default is: None
-           
+
         '''
         if package_skip_patterns is None:
             package_skip_patterns = ['\\.tests$']
@@ -215,7 +189,7 @@ class InterfaceHelpWriter(object):
         functions, classes = self._parse_lines(f, uri)
         f.close()
         return functions, classes
-    
+
     def _parse_lines(self, linesource, module):
         ''' Parse lines of text for functions and classes '''
         functions = []
@@ -241,12 +215,12 @@ class InterfaceHelpWriter(object):
 
 
     def _write_graph_section(self, fname, title):
-        ad = '\n%s\n%s\n'%(title,'~'*len(title))
+        ad = '\n%s\n%s\n\n' % (title, self.rst_section_levels[3] * len(title))
         ad += '.. graphviz::\n\n'
         fhandle = open(fname)
         for line in fhandle:
             ad += '\t' + line + '\n'
-        
+
         fhandle.close()
         os.remove(fname)
         os.remove(fname + ".png")
@@ -268,26 +242,32 @@ class InterfaceHelpWriter(object):
         # get the names of all classes and functions
         functions, classes = self._parse_module(uri)
         workflows = []
+        helper_functions = []
         for function in functions:
+
             try:
                 __import__(uri)
                 finst = sys.modules[uri].__dict__[function]
-                workflow = finst()
             except TypeError:
                 continue
-            
+            try:
+                workflow = finst()
+            except Exception:
+                helper_functions.append((function, finst))
+                continue
+
             if isinstance(workflow, Workflow):
                 workflows.append((workflow,function, finst))
-        
-        if not classes and not workflows:
+
+        if not classes and not workflows and not helper_functions:
             print 'WARNING: Empty -',uri  # dbg
             return ''
 
         # Make a shorter version of the uri that omits the package name for
-        # titles 
-        #uri_short = re.sub(r'^%s\.' % self.package_name,'',uri)
-        uri_short = uri
-        
+        # titles
+        uri_short = re.sub(r'^%s\.' % self.package_name, '', uri)
+        #uri_short = uri
+
         ad = '.. AUTO-GENERATED FILE -- DO NOT EDIT!\n\n'
 
         chap_title = uri_short
@@ -304,126 +284,59 @@ class InterfaceHelpWriter(object):
 
         #ad += '\n' + 'Classes' + '\n' + \
         #    self.rst_section_levels[2] * 7 + '\n'
+        hashmap = create_hash_map()
         for c in classes:
-            ad += '\n:class:`' + c + '`\n' \
-                  + self.rst_section_levels[2] * \
-                  (len(c)+9) + '\n\n'
             __import__(uri)
             print c
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    if c == "Function":
-                        classinst = sys.modules[uri].__dict__[c](input_names=['arg1', 'arg2'], output_names=['out'])
-                    elif c == "IdentityInterface":
-                        classinst = sys.modules[uri].__dict__[c](fields=['a','b'])
-                    else:
-                        classinst = sys.modules[uri].__dict__[c]()
+                    classinst = sys.modules[uri].__dict__[c]
             except Exception as inst:
                 print inst
                 continue
-            helpstr = ''
-            if isinstance(classinst, CommandLine):
-                helpstr += trim("Wraps command **%s**"%classinst._cmd, self.rst_section_levels[3]) + "\n\n"
-            helpstr += trim(classinst.__doc__, self.rst_section_levels[3]) + "\n\n"
-            print 'Generating inputs/outputs doc for:', uri, \
-                classinst.__class__.__name__
-            if hasattr(classinst, 'inputs'):
-                iterator = classinst.inputs.items
-            else:
-                if helpstr:
-                    ad += '\n' + helpstr + '\n'
+
+            if not issubclass(classinst, BaseInterface):
                 continue
-            mandhelpstr = None # mandatory inputs
-            opthelpstr = None  # optional inputs
-            if not helpstr:
-                helpstr = 'Inputs:: \n\n\t'
-            else:
-                helpstr += 'Inputs:: \n\n\t'
-            for i,v in sorted(iterator()):
 
-                fieldstr =  i
+            label = uri + '.' + c + ':'
+            ad += '\n.. _%s\n\n' % label
+            ad += '\n.. index:: %s\n\n' % c
+            ad += c + '\n' + self.rst_section_levels[2] * len(c) + '\n\n'
+            ad += "Code: %s\n\n" % get_file_url(classinst, hashmap)
+            ad += trim(classinst.help(returnhelp=True),
+                       self.rst_section_levels[3]) + '\n'
 
-                try:
-                    setattr(classinst.inputs,i, None)
-                except TraitError, excp:
-                    fieldstr += " : (%s)\n\t"%excp.info
-                    
-                try:
-                    fieldstr += '\t' + getattr(v, 'desc')
-                except:
-                    fieldstr += '\tUnknown'
-                if getattr(v,'xor'):
-                    fieldstr += '\n\t\texclusive: %s'%','.join(getattr(v,'xor'))
-                if getattr(v,'requires'):
-                    fieldstr += '\n\t\trequires: %s'%','.join(getattr(v,'requires'))
-                if getattr(v, 'mandatory'):
-                    if not mandhelpstr:
-                        mandhelpstr = ['[Mandatory]']
-                    mandhelpstr += [fieldstr]
-                else:
-                    if not opthelpstr:
-                        opthelpstr = ['[Optional]']
-                    opthelpstr += [fieldstr]
-                        
-            if mandhelpstr:
-                helpstr += '\n\t'.join(mandhelpstr)
-                helpstr += '\n\n\t'
-            if opthelpstr:
-                helpstr += '\n\t'.join(opthelpstr)
-            if helpstr:
-                helpstr += '\n\n'
-                
-            if classinst._outputs():
-                iterator = classinst._outputs().items
-            else:
-                iterator = {}.items
-            outstr = []
-            for i,v in sorted(iterator()):
-                fieldstr =  i
-                
-                try:
-                    setattr(classinst._outputs(),i, None)
-                except TraitError, excp:
-                    fieldstr += " : (%s)\n\t"%excp.info
-                    
-                try:
-                    fieldstr += '\t' + getattr(v, 'desc')
-                except:
-                    fieldstr += '\tUnknown'
-                outstr += [fieldstr]
-            if outstr:
-                if not helpstr:
-                    helpstr = '\nOutputs:: \n\n\t'
-                else:
-                    helpstr += '\nOutputs:: \n\n\t'
-                helpstr += '\n\t'.join(outstr)
-            if helpstr:
-                ad += '\n' + helpstr + '\n'
-        """
-            ad += '\n.. autoclass:: ' + c + '\n'
-            # must NOT exclude from index to keep cross-refs working
-            ad += '  :members:\n' \
-                  '  :undoc-members:\n' \
-                  '  :show-inheritance:\n' \
-                  '  :inherited-members:\n' \
-                  '\n' \
-                  '  .. automethod:: __init__\n'
-        """
-        
+        if workflows or helper_functions:
+            ad += '\n.. module:: %s\n\n' % uri
+
         for workflow, name, finst in workflows:
-            ad += '\n:class:`' + name + '()`\n' \
-                  + self.rst_section_levels[2] * \
-                  (len(name)+11) + '\n\n'
-            helpstr = trim(finst.__doc__, self.rst_section_levels[3]) + "\n\n"
-            ad += '\n' + helpstr + '\n'
-            
-            
+            label = ':func:`' + name + '`'
+            ad += '\n.. _%s:\n\n' % (uri + '.' + name)
+            ad += '\n'.join((label, self.rst_section_levels[2] * len(label)))
+            ad += "\n\nCode: %s\n\n" % get_file_url(finst, hashmap)
+            helpstr = trim(finst.__doc__, self.rst_section_levels[3])
+            ad += '\n\n' + helpstr + '\n\n'
+
+            """
+            # use sphinx autodoc for function signature
+            ad += '\n.. _%s:\n\n' % (uri + '.' + name)
+            ad += '.. autofunction:: %s\n\n' % name
+            """
+
             (_,fname) =  tempfile.mkstemp(suffix=".dot")
             workflow.write_graph(dotfilename=fname, graph2use='hierarchical')
-            
-            ad += self._write_graph_section(fname, 'Graph')
-            
+
+            ad += self._write_graph_section(fname, 'Graph') + '\n'
+
+        for name, finst in helper_functions:
+            label = ':func:`' + name + '`'
+            ad += '\n.. _%s:\n\n' % (uri + '.' + name)
+            ad += '\n'.join((label, self.rst_section_levels[2] * len(label)))
+            ad += "\n\nCode: %s\n\n" % get_file_url(finst, hashmap)
+            helpstr = trim(finst.__doc__, self.rst_section_levels[3])
+            ad += '\n\n' + helpstr + '\n\n'
+
         return ad
 
     def _survives_exclude(self, matchstr, match_type):
@@ -454,7 +367,7 @@ class InterfaceHelpWriter(object):
         elif match_type == 'class':
             patterns = self.class_skip_patterns
         else:
-            raise ValueError('Cannot interpret match type "%s"' 
+            raise ValueError('Cannot interpret match type "%s"'
                              % match_type)
         # Match to URI without package name
         L = len(self.package_name)
@@ -470,7 +383,7 @@ class InterfaceHelpWriter(object):
         return True
 
     def discover_modules(self):
-        ''' Return module sequence discovered from ``self.package_name`` 
+        ''' Return module sequence discovered from ``self.package_name``
 
 
         Parameters
@@ -491,7 +404,7 @@ class InterfaceHelpWriter(object):
         >>> dw.package_skip_patterns.append('\.util$')
         >>> 'sphinx.util' in dw.discover_modules()
         False
-        >>> 
+        >>>
         '''
         modules = [self.package_name]
         # raw directory parsing
@@ -514,7 +427,7 @@ class InterfaceHelpWriter(object):
                     self._survives_exclude(module_uri, 'module')):
                     modules.append(module_uri)
         return sorted(modules)
-    
+
     def write_modules_api(self, modules,outdir):
         # write the list
         written_modules = []
@@ -539,7 +452,7 @@ class InterfaceHelpWriter(object):
         outdir : string
             Directory name in which to store files
             We create automatic filenames for each module
-            
+
         Returns
         -------
         None
@@ -553,7 +466,7 @@ class InterfaceHelpWriter(object):
         # compose list of modules
         modules = self.discover_modules()
         self.write_modules_api(modules,outdir)
-        
+
     def write_index(self, outdir, froot='gen', relative_to=None):
         """Make a reST API index file from written files
 

@@ -4,14 +4,14 @@
  Configuration File
 =======================
 
-Some of the system wide options of NiPyPe can be configured using a
-configuration file. NiPyPe looks for the file in the local folder under the name
+Some of the system wide options of Nipype can be configured using a
+configuration file. Nipype looks for the file in the local folder under the name
 ``nipype.cfg`` and in ``~/.nipype.cfg`` (in this order). If an option will not
 be specified a default value will be assumed. The file is divided into following
 sections:
 
 Logging
-~~~~~~~~~
+~~~~~~~
 
 *workflow_level*
 	How detailed the logs regarding workflow should be (possible values:
@@ -23,6 +23,9 @@ Logging
 *interface_level*
 	How detailed the logs regarding interface execution should be (possible
 	values: ``INFO`` and ``DEBUG``; default value: ``INFO``)
+*log_to_file*
+    Indicates whether logging should also send the output to a file (possible
+    values: ``true`` and ``false``; default value: ``true``)
 *log_directory*
 	Where to store logs. (string, default value: home directory)
 *log_size*
@@ -31,11 +34,11 @@ Logging
 	How many rotation should the log file make. (integer, default value: 4)
 
 Execution
-~~~~~~~~~~~
+~~~~~~~~~
 
 *plugin*
-	This defines which execution plugin to use. (possible values: 
-    ``Linear``, ``MultiProc``, ``SGE``, ``IPython``; default value: ``Linear``)
+	This defines which execution plugin to use. (possible values: ``Linear``,
+	``MultiProc``, ``SGE``, ``IPython``; default value: ``Linear``)
 
 *stop_on_first_crash*
 	Should the workflow stop upon first node crashing or try to execute as many
@@ -54,6 +57,11 @@ Execution
 	potentially prone to errors)? (possible values: ``content`` and
 	``timestamp``; default value: ``content``)
 
+*keep_inputs*
+    Ensures that all inputs that are created in the nodes working directory are
+    kept after node execution (possible values: ``true`` and ``false``; default
+    value: ``false``)
+
 *single_thread_matlab*
 	Should all of the Matlab interfaces (including SPM) use only one thread?
 	This is useful if you are parallelizing your workflow using MultiProc or
@@ -70,10 +78,9 @@ Execution
 	set)
 
 *remove_unnecessary_outputs*
-	This will remove any interface outputs not needed by the
-    workflow. If the required outputs from a node changes, rerunning
-    the workflow will rerun the node. (possible values: ``true`` and
-    ``false``; default value: ``true``)
+	This will remove any interface outputs not needed by the workflow. If the
+	required outputs from a node changes, rerunning the workflow will rerun the
+	node. (possible values: ``true`` and ``false``; default value: ``true``)
 
 *use_relative_paths*
 	Should the paths stored in results (and used to look for inputs)
@@ -81,6 +88,18 @@ Execution
 	working directory around but may cause problems with
 	symlinks. (possible values: ``true`` and ``false``; default
 	value: ``false``)
+
+*local_hash_check*
+    Perform the hash check on the job submission machine. This option minimizes
+    the number of jobs submitted to a cluster engine or a multiprocessing pool
+    to only those that need to be rerun. (possible values: ``true`` and
+    ``false``; default value: ``false``)
+
+*job_finished_timeout*
+    When batch jobs are submitted through, SGE/PBS/Condor they could be killed
+    externally. Nipype checks to see if a results file exists to determine if
+    the node has completed. This timeout determines for how long this check is
+    done after a job finish is detected. (float in seconds; default value: 5)
 
 *remove_node_directories (EXPERIMENTAL)*
 	Removes directories whose outputs have already been used
@@ -90,6 +109,7 @@ Execution
 
 Example
 ~~~~~~~
+
 ::
 
 	[logging]
@@ -128,6 +148,22 @@ pipeline or the logger. Otherwise logging level will not be reset.
   """)
   
   config.readfp(cfg)
+
+Debug configuration
+~~~~~~~~~~~~~~~~~~~
+
+To enable debug mode, one can insert the following lines at the beginning of any
+script.::
+
+  from nipype.utils.config import config
+  config.enable_debug_mode()
+
+In this mode the following variables are set::
+
+  config.set('execution', 'stop_on_first_crash', 'true')
+  config.set('execution', 'remove_unnecessary_outputs', 'false')
+  config.set('logging', 'workflow_level', 'DEBUG')
+  config.set('logging', 'interface_level', 'DEBUG')
 
 
 .. include:: ../links_names.txt
