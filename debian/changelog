@@ -4,6 +4,7 @@ nipype (0.4.2~pre1-1) UNRELEASED; urgency=low
     - dropped upstreamed patches up_recent_nipy_reference,
       deb_tollerate_exceptions_while_docbuilding
   * debian/copyright: updated to fit DEP-5 1.0 + copyright years
+  * debian/python-nipype.lintian-overrides: extended list of 0-sized files
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Sun, 04 Mar 2012 19:57:48 -0500
 
