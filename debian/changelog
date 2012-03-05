@@ -1,3 +1,10 @@
+nipype (0.4.2~pre1-1) UNRELEASED; urgency=low
+
+  * Preparing for the new upstream release
+    - dropped upstreamed patch up_recent_nipy_reference
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Sun, 04 Mar 2012 19:57:48 -0500
+
 nipype (0.4.1-2) unstable; urgency=low
 
   * Cherry-picked post-release nipy-compatibility patch
