@@ -1,10 +1,16 @@
-Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?op=file&rev=174
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: Nipype
 Upstream-Contact: nipy-devel@neuroimaging.scipy.org
-Source: https://sourceforge.net/projects/nipy/
+Source: https://github.com/nipy/NiPype
 
 Files: *
-Copyright: 2006-2011, NIPY Developers
+Copyright: 2006-2012, NIPY Developers
+License: BSD
+
+Files: debian/*
+Copyright: Copyright 2009-2012, Yaroslav Halchenko <debian@onerussian.com>
+License: BSD
+
 License: BSD
   All rights reserved.
   .
@@ -33,8 +39,3 @@ License: BSD
   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-
-Files: debian/*
-Copyright: Copyright 2009-2011, Yaroslav Halchenko <debian@onerussian.com>
-License: BSD
