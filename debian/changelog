@@ -1,6 +1,6 @@
-nipype (0.4.2~pre1-1) UNRELEASED; urgency=low
+nipype (0.5.0-1) unstable; urgency=low
 
-  * Preparing for the new upstream release
+  * Fresh upstream release
     - dropped upstreamed patches up_recent_nipy_reference,
       deb_tollerate_exceptions_while_docbuilding
   * debian/copyright: updated to fit DEP-5 1.0 + copyright years
