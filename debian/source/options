@@ -1,0 +1,2 @@
+# ignore changes to the commit info file -- it should match upstream's, not debian/ branch
+extend-diff-ignore = nipype/COMMIT_INFO.txt

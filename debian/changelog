@@ -1,6 +1,7 @@
 nipype (0.5.1-1) unstable; urgency=low
 
   * Fresh bugfix upstream release
+  * Added debian/source/options to ignore difference in COMMIT_INFO.txt
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Wed, 14 Mar 2012 13:10:53 -0400
 
