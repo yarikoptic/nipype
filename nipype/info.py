@@ -9,7 +9,7 @@ docs.  In setup.py in particular, we exec this file, so it cannot import nipy
 # version
 _version_major = 0
 _version_minor = 5
-_version_micro = 0
+_version_micro = 1
 _version_extra = ''
 
 def get_nipype_gitversion():
@@ -52,7 +52,7 @@ __version__ = "%s.%s.%s%s" % (_version_major,
                               _version_micro,
                               _version_extra)
 
-CLASSIFIERS = ["Development Status :: 5 - Stable",
+CLASSIFIERS = ["Development Status :: 5 - Production/Stable",
                "Environment :: Console",
                "Intended Audience :: Science/Research",
                "License :: OSI Approved :: BSD License",
