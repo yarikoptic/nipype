@@ -1,0 +1,33 @@
+--- a/nipype/interfaces/ants/base.py
++++ b/nipype/interfaces/ants/base.py
+@@ -7,7 +7,7 @@ from nipype.interfaces.base import (Comm
+ isdefined)
+ 
+ from ... import logging
+-logger = logging.getLogger('iflogger')
++logger = logging.getLogger('interface')
+ 
+ 
+ class ANTSCommandInputSpec(CommandLineInputSpec):
+--- a/nipype/interfaces/spm/base.py
++++ b/nipype/interfaces/spm/base.py
+@@ -23,7 +23,7 @@ from nipype.interfaces.matlab import Mat
+ import nipype.utils.spm_docs as sd
+ 
+ from ... import logging
+-logger = logging.getLogger('iflogger')
++logger = logging.getLogger('interface')
+ 
+ def func_is_3d(in_file):
+     """Checks if input functional files are 3d."""
+--- a/nipype/interfaces/spm/model.py
++++ b/nipype/interfaces/spm/model.py
+@@ -30,7 +30,7 @@ from nipype.utils.filemanip import (file
+                                     split_filename)
+ 
+ from ... import logging
+-logger = logging.getLogger('spmlogger')
++logger = logging.getLogger('interface')
+ 
+ 
+ class Level1DesignInputSpec(SPMCommandInputSpec):
