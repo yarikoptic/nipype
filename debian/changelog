@@ -2,6 +2,10 @@ nipype (0.5.1-1) unstable; urgency=low
 
   * Fresh bugfix upstream release
   * Added debian/source/options to ignore difference in COMMIT_INFO.txt
+  * Absorbed a few post-release fixes:
+    - up_pkg_ref
+    - up_logging_imports
+    - up_ipython_imports
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Wed, 14 Mar 2012 13:10:53 -0400
 
