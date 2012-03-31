@@ -1,3 +1,9 @@
+nipype (0.5.3-1) unstable; urgency=low
+
+  * Fresh bugfix upstream release (FIX: SPM model generation ...)
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Sat, 31 Mar 2012 19:44:53 -0400
+
 nipype (0.5.2-1) unstable; urgency=low
 
   * Fresh bugfix upstream release
