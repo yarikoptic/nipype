@@ -1,3 +1,10 @@
+nipype (0.5.3-2) unstable; urgency=low
+
+  * Make it buildable on HOMEless systems (Closes: #664944)
+    Thanks Lucas Nussbaum for the patch.
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 18 Jun 2012 13:41:47 -0400
+
 nipype (0.5.3-1) unstable; urgency=low
 
   * Fresh bugfix upstream release (FIX: SPM model generation ...)

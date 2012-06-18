@@ -8,6 +8,7 @@ DEB_PYTHON_MODULE_PACKAGES = python-nipype
 include /usr/share/cdbs/1/class/python-distutils.mk
 
 DEB_DESTDIR = $(CURDIR)/debian/python-nipype
+export HOME=$(CURDIR)/build
 
 build/python-nipype::
 	mkdir -p build
