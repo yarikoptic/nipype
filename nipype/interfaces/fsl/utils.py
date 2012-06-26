@@ -458,6 +458,64 @@ class ImageStats(FSLCommand):
         outputs.out_stat = out_stat
         return outputs
 
+class AvScaleInputSpec(FSLCommandInputSpec):
+    mat_file = File(exists=True, argstr="%s", 
+        desc='mat file to read', position=0)
+
+
+class AvScaleOutputSpec(TraitedSpec):
+    rotation_translation_matrix=traits.Any(desc='Rotation and Translation Matrix')
+    scales = traits.Any(desc='Scales (x,y,z)')
+    skews = traits.Any(desc='Skews')
+    average_scaling = traits.Any(desc='Average Scaling')
+    determinant = traits.Any(desc='Determinant')
+    forward_half_transform = traits.Any(desc='Forward Half Transform')
+    backward_half_transform = traits.Any(desc='Backwards Half Transform')
+    left_right_orientation_preserved = traits.Bool(desc='True if LR orientation preserved')
+    
+class AvScale(FSLCommand):
+    """Use FSL avscale command to extract info from mat file output of FLIRT
+
+    Examples
+    --------
+    avscale = AvScale()
+    avscale.inputs.mat_file = 'flirt.mat'
+    res = avscale.run()  # doctest: +SKIP
+
+    """
+    input_spec = AvScaleInputSpec
+    output_spec = AvScaleOutputSpec
+
+    _cmd = 'avscale'
+
+    def _format_arg(self, name, trait_spec, value):
+        return super(AvScale, self)._format_arg(name, trait_spec, value)
+
+    def aggregate_outputs(self, runtime=None, needed_outputs=None):
+        outputs = self._outputs()
+
+        def lines_to_float(lines):
+            out = []
+            for line in lines:
+                values = line.split()
+                out.append([float(val) for val in values])
+            return out
+            
+        out = runtime.stdout.split('\n')
+
+        outputs.rotation_translation_matrix = lines_to_float(out[1:5])
+        outputs.scales = lines_to_float([out[6].split(" = ")[1]])
+        outputs.skews = lines_to_float([out[8].split(" = ")[1]])
+        outputs.average_scaling = lines_to_float([out[10].split(" = ")[1]])
+        outputs.determinant = lines_to_float([out[12].split(" = ")[1]])
+        if out[13].split(": ")[1] == 'preserved':
+            outputs.left_right_orientation_preserved = True
+        else:
+            outputs.left_right_orientation_preserved = False
+        outputs.forward_half_transform = lines_to_float(out[16:20])
+        outputs.backward_half_transform = lines_to_float(out[22:-1])
+
+        return outputs
 
 class OverlayInputSpec(FSLCommandInputSpec):
     transparency = traits.Bool(desc='make overlay colors semi-transparent',
@@ -985,3 +1043,107 @@ class PowerSpectrum(FSLCommand):
         if name == 'out_file':
             return self._gen_outfilename()
         return None
+
+class EPIDeWarpInputSpec(FSLCommandInputSpec):
+
+    mag_file = File(exists=True,
+                  desc='Magnitude file',
+                  argstr='--mag %s', position=0, mandatory=True)
+    dph_file = File(exists=True,
+                  desc='Phase file assumed to be scaled from 0 to 4095',
+                  argstr='--dph %s', mandatory=True)
+    exf_file = File(exists=True,
+                  desc='example func volume (or use epi)',
+                  argstr='--exf %s', mandatory=False)
+    epi_file = File(exists=True,
+                  desc='EPI volume to unwarp',
+                  argstr='--epi %s', mandatory=False)
+    tediff = traits.Float(2.46, usedefault=True,
+                          desc='difference in B0 field map TEs',
+                          argstr='--tediff %s')
+    esp = traits.Float(0.58, desc='EPI echo spacing',
+                  argstr='--esp %s', usedefault=True)
+    sigma = traits.Int(2, usedefault=True, argstr='--sigma %s',
+                       desc="2D spatial gaussing smoothing \
+                       stdev (default = 2mm)")
+    vsm = traits.String(genfile=True, desc='voxel shift map',
+                        argstr='--vsm %s')
+    exfdw = traits.String(desc='dewarped example func volume', genfile=True,
+                          argstr='--exfdw %s')
+    epidw = traits.String(desc='dewarped epi volume', genfile=False,
+                          argstr='--epidw %s')
+    tmpdir = traits.String(genfile=True, desc='tmpdir',
+                           argstr='--tmpdir %s')
+    nocleanup = traits.Bool(True, usedefault=True, desc='no cleanup',
+                            argstr='--nocleanup')
+    cleanup = traits.Bool(desc='cleanup',
+                          argstr='--cleanup')
+
+
+class EPIDeWarpOutputSpec(TraitedSpec):
+    unwarped_file = File(desc="unwarped epi file")
+    vsm_file = File(desc="voxel shift map")
+    exfdw = File(desc="dewarped functional volume example")
+    exf_mask = File(desc="Mask from example functional volume")
+
+
+class EPIDeWarp(FSLCommand):
+    """Wraps fieldmap unwarping script from Freesurfer's epidewarp.fsl_
+
+    Examples
+    --------
+    >>> dewarp = EPIDeWarp()
+    >>> dewarp.inputs.epi_file = "functional.nii"
+    >>> dewarp.inputs.mag_file = "magnitude.nii"
+    >>> dewarp.inputs.dph_file = "phase.nii"
+    >>> res = dewarp.run() # doctest: +SKIP
+
+    References
+    ----------
+    _epidewarp.fsl: http://surfer.nmr.mgh.harvard.edu/fswiki/epidewarp.fsl
+
+    """
+
+    _cmd = 'epidewarp.fsl'
+    input_spec = EPIDeWarpInputSpec
+    output_spec = EPIDeWarpOutputSpec
+
+    def _gen_filename(self, name):
+        if name == 'exfdw':
+            if isdefined(self.inputs.exf_file):
+                return self._gen_fname(self.inputs.exf_file,
+                                  suffix="_exfdw")
+            else:
+                return self._gen_fname("exfdw")
+        if name == 'epidw':
+            if isdefined(self.inputs.epi_file):
+                return self._gen_fname(self.inputs.epi_file,
+                                  suffix="_epidw")
+        if name == 'vsm':
+            return self._gen_fname('vsm')
+        if name == 'tmpdir':
+            return os.path.join(os.getcwd(), 'temp')
+        return None
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        if not isdefined(self.inputs.exfdw):
+            outputs['exfdw'] = self._gen_filename('exfdw')
+        else:
+            outputs['exfdw'] = self.inputs.exfdw
+        if isdefined(self.inputs.epi_file):
+            if isdefined(self.inputs.epidw):
+                outputs['unwarped_file'] = self.inputs.epidw
+            else:
+                outputs['unwarped_file'] = self._gen_filename('epidw')
+        if not isdefined(self.inputs.vsm):
+            outputs['vsm_file'] = self._gen_filename('vsm')
+        else:
+            outputs['vsm_file'] = self._gen_fname(self.inputs.vsm)
+        if not isdefined(self.inputs.tmpdir):
+            outputs['exf_mask'] = self._gen_fname(cwd=self._gen_filename('tmpdir'),
+                                                  basename='maskexf')
+        else:
+            outputs['exf_mask'] = self._gen_fname(cwd=self.inputs.tmpdir,
+                                                  basename='maskexf')
+        return outputs
