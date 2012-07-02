@@ -2,6 +2,7 @@ nipype (0.6.0-1) experimental; urgency=low
 
   * New upstream release.  Upload to experimental due to wheezy freeze
   * Boosted policy to 3.9.3
+  * debian/watch: adjusted for github url changes
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 02 Jul 2012 09:41:29 -0400
 

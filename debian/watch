@@ -1,4 +1,4 @@
 version=3
 
 opts="filenamemangle=s/.*\/(.*)/nipype-$1\.tar\.gz/,uversionmangle=s/rc/~rc/g" \
-  http://github.com/nipy/nipype/downloads .*tarball/(\d[\d\.a-z]+)
+ https://github.com/nipy/nipype/tags .*tarball/(\d[\d\.a-z]+)
