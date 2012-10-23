@@ -1,3 +1,11 @@
+nipype (0.6.0-2) experimental; urgency=low
+
+  * Cherry-picked cc5433b3513477a3ccf6addac4b67fb4e2884d48 as
+    0001-fix-github-authentication.patch to resolve FTBFS while building
+    documentation
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Tue, 23 Oct 2012 11:29:33 -0400
+
 nipype (0.6.0-1) experimental; urgency=low
 
   * New upstream release.  Upload to experimental due to wheezy freeze
