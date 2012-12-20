@@ -1,0 +1,85 @@
+From: Yaroslav Halchenko <debian@onerussian.com>
+Author: Satrajit Ghosh <satrajit.ghosh@gmail.com>
+Subject: Do not require network access to generate links to github in the documentation
+
+ Adopted (1 irrelevant hunk was dropped) from 0.7 release of nipype for
+ those two files.
+ Thanks to Satrajit Ghosh for the fix
+
+Origin: https://github.com/nipy/nipype/commit/b36cc9c958a30695f27f4c518c950d7b4db18dca
+Bug-Debian: http://bugs.debian.org/696410
+Applied-Upstream: as of 0.7 release
+Last-Update: 2012-12-20
+
+--- a/tools/interfacedocgen.py
++++ b/tools/interfacedocgen.py
+@@ -31,7 +31,7 @@ from nipype.interfaces.base import BaseI
+ from nipype.pipeline.engine import Workflow
+ from nipype.utils.misc import trim
+ 
+-from github import create_hash_map, get_file_url
++from github import get_file_url
+ 
+ # Functions and classes
+ class InterfaceHelpWriter(object):
+@@ -284,7 +284,6 @@ class InterfaceHelpWriter(object):
+ 
+         #ad += '\n' + 'Classes' + '\n' + \
+         #    self.rst_section_levels[2] * 7 + '\n'
+-        hashmap = create_hash_map()
+         for c in classes:
+             __import__(uri)
+             print c
+@@ -303,7 +302,7 @@ class InterfaceHelpWriter(object):
+             ad += '\n.. _%s\n\n' % label
+             ad += '\n.. index:: %s\n\n' % c
+             ad += c + '\n' + self.rst_section_levels[2] * len(c) + '\n\n'
+-            ad += "Code: %s\n\n" % get_file_url(classinst, hashmap)
++            ad += "`Link to code <%s>`_\n\n" % get_file_url(classinst)
+             ad += trim(classinst.help(returnhelp=True),
+                        self.rst_section_levels[3]) + '\n'
+ 
+@@ -314,7 +313,7 @@ class InterfaceHelpWriter(object):
+             label = ':func:`' + name + '`'
+             ad += '\n.. _%s:\n\n' % (uri + '.' + name)
+             ad += '\n'.join((label, self.rst_section_levels[2] * len(label)))
+-            ad += "\n\nCode: %s\n\n" % get_file_url(finst, hashmap)
++            ad += "\n\n`Link to code <%s>`_\n\n" % get_file_url(finst)
+             helpstr = trim(finst.__doc__, self.rst_section_levels[3])
+             ad += '\n\n' + helpstr + '\n\n'
+ 
+@@ -333,7 +332,7 @@ class InterfaceHelpWriter(object):
+             label = ':func:`' + name + '`'
+             ad += '\n.. _%s:\n\n' % (uri + '.' + name)
+             ad += '\n'.join((label, self.rst_section_levels[2] * len(label)))
+-            ad += "\n\nCode: %s\n\n" % get_file_url(finst, hashmap)
++            ad += "\n\n`Link to code <%s>`_\n\n" % get_file_url(finst)
+             helpstr = trim(finst.__doc__, self.rst_section_levels[3])
+             ad += '\n\n' + helpstr + '\n\n'
+ 
+--- a/tools/github.py
++++ b/tools/github.py
+@@ -76,17 +81,16 @@ def get_repo_url(force_github=False):
+     return uri
+ 
+ 
+-def get_file_url(object, hashmap):
++def get_file_url(object):
+     """Returns local or remote url for an object
+     """
+     filename = inspect.getsourcefile(object)
+     lines = inspect.getsourcelines(object)
+     uri = 'file://%s#L%d' % (filename, lines[1])
+     if is_git_repo():
+-        o, _ = Popen('git hash-object %s' % filename, shell=True, stdout=PIPE,
+-                     cwd=os.path.dirname(nipype.__file__)).communicate()
+-        key = o.strip()
+-        if key in hashmap:
+-            uri = 'http://github.com/nipy/nipype/blob/master/' + \
+-                  hashmap[key] + '#L%d' % lines[1]
++        info = nipype.get_info()
++        shortfile = os.path.join('nipype', filename.split('nipype/')[-1])
++        uri = 'http://github.com/nipy/nipype/tree/%s/%s#L%d' % \
++                                                           (info['commit_hash'],
++                                                            shortfile, lines[1])
+     return uri
