@@ -41,9 +41,11 @@ endif
 # symlinked by debhelper
 install/python-nipype-doc::
 	-rm doc/_build/html/_static/jquery.js
-	: # In documentation (.html and .htmle), fix paths to .py source files
-	find doc/_build/html -regextype posix-egrep -regex '.*\.htmle*' \
+	: # In documentation (.html), fix paths to .py source files
+	find doc/_build/html -iname '*.html' \
 	| xargs sed -ie 's,file://$(CURDIR),file:///usr/share/pyshared,g'
+	: # Prune sphinx bi-products (.htmle) files
+	-find doc/_build/html -iname '*.htmle' -delete
 
 # immediately useable documentation
 # and exemplar data (they are small excerpts anyways)
