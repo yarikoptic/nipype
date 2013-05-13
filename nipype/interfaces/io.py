@@ -356,7 +356,7 @@ class DataGrabberInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):  # Inter
                                desc='Path to the base directory consisting of subject data.')
     raise_on_empty = traits.Bool(True, usedefault=True,
                                  desc='Generate exception if list is empty for a given field')
-    sort_filelist = traits.Bool(False, usedefault=True,
+    sort_filelist = traits.Bool(mandatory=True,
                                 desc='Sort the filelist that matches the template')
     template = traits.Str(mandatory=True,
                           desc='Layout used to get files. relative to base directory if defined')
@@ -439,6 +439,7 @@ class DataGrabber(IOBase):
         undefined_traits = {}
         # used for mandatory inputs check
         self._infields = infields
+        self._outfields = outfields
         if infields:
             for key in infields:
                 self.inputs.add_trait(key, traits.Any)
