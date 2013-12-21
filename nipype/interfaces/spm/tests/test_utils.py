@@ -37,7 +37,7 @@ def test_apply_transform():
     scrpt = applymat._make_matlab_command(None)
     expected = 'img_space = spm_get_space(infile);'
     assert_equal( expected in scrpt, True)
-    expected = 'spm_get_space(infile, transform.M * img_space);'
+    expected = 'spm_get_space(infile, M * img_space);'
     assert_equal(expected in scrpt, True)
 
 def test_reslice():
@@ -59,3 +59,17 @@ def test_reslice():
     expected_interp = 'flags.interp = 1;\n'
     assert_equal(expected_interp in script, True)
     assert_equal('spm_reslice(invols, flags);' in script, True)
+
+def test_dicom_import():
+    dicom = example_data(infile = 'dicomdir/123456-1-1.dcm')
+    di = spmu.DicomImport(matlab_cmd = 'mymatlab')
+    assert_equal(di.inputs.matlab_cmd, 'mymatlab')
+    assert_equal(di.inputs.output_dir_struct, 'flat')
+    assert_equal(di.inputs.output_dir, './converted_dicom')
+    assert_equal(di.inputs.format, 'nii')
+    assert_equal(di.inputs.icedims, False)
+    assert_raises(TraitError,di.inputs.trait_set,output_dir_struct = 'wrong')
+    assert_raises(TraitError,di.inputs.trait_set,format = 'FAT')
+    assert_raises(TraitError,di.inputs.trait_set,in_files = ['does_sfd_not_32fn_exist.dcm'])
+    di.inputs.in_files = [dicom]
+    assert_equal(di.inputs.in_files, [dicom])
