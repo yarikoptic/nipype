@@ -1,3 +1,9 @@
+nipype (0.9.2-1) unstable; urgency=low
+
+  * New bugfix upstream release
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Fri, 31 Jan 2014 15:47:16 -0500
+
 nipype (0.9.1+git9-g8b1d21c-1) unstable; urgency=low
 
   * Post bug-fix release snapshot
