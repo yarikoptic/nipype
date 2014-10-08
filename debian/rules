@@ -32,7 +32,7 @@ ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	cd debian && \
 	 PYTHONPATH=$(DEB_DESTDIR)/usr/lib/python$(cdbs_python_current_version)/site-packages \
      MPLCONFIGDIR=$(CURDIR)/build \
-	  nosetests -v nipype -e test_spm_path
+	  nosetests -v --with-doctest nipype -e test_spm_path
 endif
 	: # no executable spreadsheets
 	find debian -iname *csv -print0 | xargs -r -0 chmod a-x

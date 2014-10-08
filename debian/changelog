@@ -1,3 +1,14 @@
+nipype (0.9.2+git573-g1fa941e-1) unstable; urgency=medium
+
+  * New upstream snapshot from 0.9.2-573-g1fa941e
+    - provides non-minified javascript library (Closes: #737443)
+  * debian/rules
+    - enable doctests
+  * debian/control
+    - boost policy to 3.9.6
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Wed, 08 Oct 2014 11:13:14 -0400
+
 nipype (0.9.2-1) unstable; urgency=low
 
   * New bugfix upstream release
