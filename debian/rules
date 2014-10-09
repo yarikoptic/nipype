@@ -10,6 +10,10 @@ include /usr/share/cdbs/1/class/python-distutils.mk
 DEB_DESTDIR = $(CURDIR)/debian/python-nipype
 export HOME=$(CURDIR)/build
 
+IPYTHONVER := $(shell ipython -V || echo 0) # recent only needed for sphinxext
+IPYTHONPATH := $(shell dpkg --compare-versions $(IPYTHONVER) lt 1 \
+				 && echo ":/usr/lib/python$(PYVER)/dist-packages/IPython1X" || echo '')
+
 build/python-nipype::
 	mkdir -p build
 	echo "backend : Agg" >| build/matplotlibrc
@@ -30,7 +34,7 @@ build/python-nipype-doc:: doc
 install/python-nipype::
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	cd debian && \
-	 PYTHONPATH=$(DEB_DESTDIR)/usr/lib/python$(cdbs_python_current_version)/site-packages \
+	 PYTHONPATH=$(DEB_DESTDIR)/usr/lib/python$(cdbs_python_current_version)/site-packages$(IPYTHONPATH) \
      MPLCONFIGDIR=$(CURDIR)/build \
 	  nosetests -v --with-doctest nipype -e test_spm_path
 endif
