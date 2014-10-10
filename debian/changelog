@@ -4,10 +4,13 @@ nipype (0.9.2+git581-gd9a52d0-1) unstable; urgency=medium
     - provides non-minified javascript library (Closes: #737443)
   * debian/rules
     - enable doctests
+    - switch away from pysupport
   * debian/control
     - boost policy to 3.9.6
     - build-depends on recent ipython (or use ipython1x) to obtain necessary
       sphinx extensions
+  * debian/copyright
+    - updated years, and used BSD-3 for the short license label
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Thu, 09 Oct 2014 16:49:19 -0400
 

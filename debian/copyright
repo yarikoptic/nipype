@@ -4,14 +4,14 @@ Upstream-Contact: nipy-devel@neuroimaging.scipy.org
 Source: https://github.com/nipy/NiPype
 
 Files: *
-Copyright: 2006-2012, NIPY Developers
-License: BSD
+Copyright: 2006-2014, NIPY Developers
+License: BSD-3
 
 Files: debian/*
-Copyright: Copyright 2009-2012, Yaroslav Halchenko <debian@onerussian.com>
-License: BSD
+Copyright: Copyright 2009-2014, Yaroslav Halchenko <debian@onerussian.com>
+License: BSD-3
 
-License: BSD
+License: BSD-3
   All rights reserved.
   .
   Redistribution and use in source and binary forms, with or without
