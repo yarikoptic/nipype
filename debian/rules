@@ -10,6 +10,9 @@ include /usr/share/cdbs/1/class/python-distutils.mk
 DEB_DESTDIR = $(CURDIR)/debian/python-nipype
 export HOME=$(CURDIR)/build
 
+PYVERS = $(shell pyversions -vr)
+PYVER = $(shell pyversions -vd)
+
 IPYTHONVER := $(shell ipython -V || echo 0) # recent only needed for sphinxext
 IPYTHONPATH := $(shell dpkg --compare-versions $(IPYTHONVER) lt 1 \
 				 && echo ":/usr/lib/python$(PYVER)/dist-packages/IPython1X" || echo '')
@@ -25,7 +28,7 @@ doc: doc-stamp
 doc-stamp: build/python-nipype
 ifeq (,$(filter nodoc,$(DEB_BUILD_OPTIONS)))
 	: # TODO: We need to set matplotlib backend to Agg before building...
-	export PYTHONPATH=$$PWD MPLCONFIGDIR=$(CURDIR)/build; cd doc; $(MAKE) html
+	export PYTHONPATH=$$PWD$(IPYTHONPATH) MPLCONFIGDIR=$(CURDIR)/build; cd doc; $(MAKE) html
 	touch $@
 endif
 
