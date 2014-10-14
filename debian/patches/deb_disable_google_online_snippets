@@ -236,3 +236,23 @@
  <style type="text/css">
      a.navbar {
      color: {{ theme_linkcolor }};
+--- a/doc/_templates/sidebar_versions.html
++++ b/doc/_templates/sidebar_versions.html
+@@ -32,17 +32,9 @@
+                     src="http://www.ohloh.net/p/480871/widgets/project_users_logo.js">
+             </script>
+         </div><!-- use -->
+-        <g:plusone size="medium" annotation="none"></g:plusone>
+         <div class="clear"></div>
+     </div><!-- buttons container -->
+ </div>
+ 
+ 
+-<script type="text/javascript">
+-    (function() {
+-        var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+-        po.src = 'https://apis.google.com/js/plusone.js';
+-        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+-    })();
+-</script>
+ {% endblock %}

@@ -47,6 +47,7 @@ endif
 # symlinked by debhelper
 install/python-nipype-doc::
 	-rm doc/_build/html/_static/jquery.js
+	-rm doc/_build/html/_static/underscore.js
 
 # immediately useable documentation
 # and exemplar data (they are small excerpts anyways)

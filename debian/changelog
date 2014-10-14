@@ -9,13 +9,16 @@ nipype (0.9.2+git593-g35c9f46-1) unstable; urgency=medium
     - boost policy to 3.9.6
     - build-depends on recent ipython (or use ipython1x) to obtain necessary
       sphinx extensions
+    - use system-wide underscore.js
   * debian/copyright
     - updated years, and used BSD-3 for the short license label
   * debian/patches
     - deb_disable_google_online_snippets -- disable all kinds of Google
       goodness (CSE, analytics)
+  * debian/*lintian*
+    - adjusted
 
- -- Yaroslav Halchenko <debian@onerussian.com>  Tue, 14 Oct 2014 09:18:18 -0400
+ -- Yaroslav Halchenko <debian@onerussian.com>  Tue, 14 Oct 2014 11:49:12 -0400
 
 nipype (0.9.2-1) unstable; urgency=low
 

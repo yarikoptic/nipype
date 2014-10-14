@@ -42,7 +42,7 @@ Description: Neuroimaging data analysis pipelines in Python
 Package: python-nipype-doc
 Architecture: all
 Section: doc
-Depends: ${misc:Depends}, libjs-jquery
+Depends: ${misc:Depends}, libjs-jquery, libjs-underscore
 Suggests: python-nipype
 Description: Neuroimaging data analysis pipelines in Python -- documentation
  Nipype interfaces Python to other neuroimaging packages and creates
