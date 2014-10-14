@@ -1,4 +1,5 @@
 # Those files are empty files, necessary for unittesting
+python-nipype binary: gz-file-not-gzip *usr/share/pyshared/nipype/testing/data/*
 python-nipype binary: gz-file-not-gzip *usr/share/pyshared/nipype/testing/data/cope.nii.gz
 python-nipype binary: gz-file-not-gzip *usr/share/pyshared/nipype/testing/data/varcope.nii.gz
 python-nipype binary: gz-file-not-gzip *usr/share/pyshared/nipype/testing/data/mean_func.nii.gz
