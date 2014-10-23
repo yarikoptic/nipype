@@ -17,8 +17,11 @@ nipype (0.10.0-1) unstable; urgency=medium
       goodness (CSE, analytics)
   * debian/*lintian*
     - adjusted
+  * debian/patches
+    - changeset_e4c5ba858abf0dde5739788c0174417d21fb4c41.diff
+      to resolve issues with context handler on older numpy's
 
- -- Yaroslav Halchenko <debian@onerussian.com>  Sun, 19 Oct 2014 16:33:47 -0400
+ -- Yaroslav Halchenko <debian@onerussian.com>  Wed, 22 Oct 2014 21:32:32 -0400
 
 nipype (0.9.2-1) unstable; urgency=low
 
