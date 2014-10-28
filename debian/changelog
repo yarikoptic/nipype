@@ -1,3 +1,12 @@
+nipype (0.10.0-2) unstable; urgency=medium
+
+  [ Andreas Tille ]
+  * Team upload.
+  * debian/blends, debian/upstream/metadata: Moved publication data where
+    they belong to
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Tue, 28 Oct 2014 11:28:34 -0400
+
 nipype (0.10.0-1) unstable; urgency=medium
 
   * New upstream release
