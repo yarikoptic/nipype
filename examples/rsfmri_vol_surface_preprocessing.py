@@ -230,7 +230,7 @@ def build_filter1(motion_params, comp_norm, outliers, detrend_poly=None):
             out_params = np.hstack((out_params, outlier_vector))
         if detrend_poly:
             timepoints = out_params.shape[0]
-            X = np.ones((timepoints, 1))
+            X = np.empty((timepoints, 0))
             for i in range(detrend_poly):
                 X = np.hstack((X, legendre(
                     i + 1)(np.linspace(-1, 1, timepoints))[:, None]))
@@ -369,8 +369,6 @@ def create_reg_workflow(name='registration'):
 
     Parameters
     ----------
-
-    ::
 
         name : name of workflow (default: 'registration')
 
@@ -519,7 +517,7 @@ def create_reg_workflow(name='registration'):
     reg.inputs.use_histogram_matching = [False] * 2 + [True]
     reg.inputs.winsorize_lower_quantile = 0.005
     reg.inputs.winsorize_upper_quantile = 0.995
-    reg.inputs.args = '--float'
+    reg.inputs.float = True
     reg.inputs.output_warped_image = 'output_warped_image.nii.gz'
     reg.inputs.num_threads = 4
     reg.plugin_args = {'qsub_args': '-l nodes=1:ppn=4'}
@@ -530,11 +528,9 @@ def create_reg_workflow(name='registration'):
     Concatenate the affine and ants transforms into a list
     """
 
-    pickfirst = lambda x: x[0]
-
     merge = Node(Merge(2), iterfield=['in2'], name='mergexfm')
     register.connect(convert2itk, 'itk_transform', merge, 'in2')
-    register.connect(reg, ('composite_transform', pickfirst), merge, 'in1')
+    register.connect(reg, 'composite_transform', merge, 'in1')
 
     """
     Transform the mean image. First to anatomical and then to target
@@ -542,7 +538,7 @@ def create_reg_workflow(name='registration'):
 
     warpmean = Node(ants.ApplyTransforms(), name='warpmean')
     warpmean.inputs.input_image_type = 3
-    warpmean.inputs.interpolation = 'BSpline'
+    warpmean.inputs.interpolation = 'Linear'
     warpmean.inputs.invert_transform_flags = [False, False]
     warpmean.inputs.terminal_output = 'file'
     warpmean.inputs.args = '--float'
@@ -771,7 +767,7 @@ def create_workflow(files,
     warpall = MapNode(ants.ApplyTransforms(), iterfield=['input_image'],
                       name='warpall')
     warpall.inputs.input_image_type = 3
-    warpall.inputs.interpolation = 'BSpline'
+    warpall.inputs.interpolation = 'Linear'
     warpall.inputs.invert_transform_flags = [False, False]
     warpall.inputs.terminal_output = 'file'
     warpall.inputs.reference_image = target_file
@@ -1003,9 +999,11 @@ if __name__ == "__main__":
     parser.add_argument('--surf_fwhm', default=15., dest='surf_fwhm',
                         type=float, help="Spatial FWHM" + defstr)
     parser.add_argument("-l", "--lowpass_freq", dest="lowpass_freq",
-                        default=0.1, help="Low pass frequency (Hz)" + defstr)
+                        default=0.1, type=float,
+                        help="Low pass frequency (Hz)" + defstr)
     parser.add_argument("-u", "--highpass_freq", dest="highpass_freq",
-                        default=0.01, help="High pass frequency (Hz)" + defstr)
+                        default=0.01, type=float,
+                        help="High pass frequency (Hz)" + defstr)
     parser.add_argument("-o", "--output_dir", dest="sink",
                         help="Output directory base", required=True)
     parser.add_argument("-w", "--work_dir", dest="work_dir",

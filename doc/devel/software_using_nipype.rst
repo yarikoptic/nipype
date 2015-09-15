@@ -23,6 +23,16 @@ BROCCOLI
 
 `BROCCOLI <https://github.com/wanderine/BROCCOLI/>`_ is a piece of software for fast fMRI analysis on many core CPUs and GPUs. It provides Nipype Interfaces.
 
+Forward
+-------
+
+`Forward <http://cyclotronresearchcentre.github.io/forward/>`_ is set of tools simplifying the preparation of accurate electromagnetic head models for EEG forward modeling. It uses Nipype Workflows and Interfaces.
+
+Limbo
+-----
+
+`Limbo <https://github.com/Gilles86/in_limbo>`_ is a toolbox for finding brain regions that are neither significantly active nor inactive, but rather “in limbo”. It was build using custom Nipype Interfaces and Workflows.
+
 Lyman
 -----
 
@@ -32,6 +42,11 @@ Medimsight
 ----------
 
 `Medimsight <https://www.medimsight.com>`_ is a commercial service medical imaging cloud platform. It uses Nipype to interface with various neuroimaging software.
+
+MIA
+---
+
+`MIA <http://mia.sourceforge.net>`_ MIA is a a toolkit for gray scale medical image analysis. It provides Nipype interfaces for easy integration with other software.
 
 Mindboggle
 ----------
@@ -43,6 +58,11 @@ OpenfMRI
 
 `OpenfMRI <https://openfmri.org/>`_ is a repository for task based fMRI datasets. It uses Nipype for automated analysis of the deposited data.
 
+serial functional Diffusion Mapping (sfDM)
+------------------------------------------
+
+'sfDM <http://github.com/PIRCImagingTools/sfDM>'_ is a software package for looking at changes in diffusion profiles of different tissue types across time. It uses Nipype to process the data.
+
 
 The Stanford CNI MRS Library (SMAL)
 -----------------------------------
@@ -52,4 +72,4 @@ The Stanford CNI MRS Library (SMAL)
 tract_querier
 -------------
 
-`tract_querier <https://github.com/demianw/tract_querier>`_ is a White Matter Query Language tool. It provides Nipype interfaces. 
+`tract_querier <https://github.com/demianw/tract_querier>`_ is a White Matter Query Language tool. It provides Nipype interfaces.

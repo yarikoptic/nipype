@@ -146,6 +146,8 @@ class ApplyTransform(SPMCommand):
 
     def _make_matlab_command(self, _):
         """checks for SPM, generates script"""
+        outputs = self._list_outputs()
+        self.inputs.out_file = outputs['out_file']
         script = """
         infile = '%s';
         outfile = '%s'
@@ -168,16 +170,14 @@ class ApplyTransform(SPMCommand):
     def _list_outputs(self):
         outputs = self.output_spec().get()
         if not isdefined(self.inputs.out_file):
-            _, name, _ = split_filename(self.inputs.in_file)
-            outputs['out_file'] = os.path.abspath(name + '_trans.nii')
+            outputs['out_file'] = os.path.abspath(self._gen_outfilename())
         else:
             outputs['out_file'] = os.path.abspath(self.inputs.out_file)
         return outputs
 
-    def _gen_filename(self, name):
-        if name == 'out_file':
-            return self._list_outputs()[name]
-        return None
+    def _gen_outfilename(self):
+        _, name, _ = split_filename(self.inputs.in_file)
+        return name + '_trans.nii'
 
 class ResliceInputSpec(SPMCommandInputSpec):
     in_file = File( exists = True, mandatory=True,
@@ -450,5 +450,14 @@ class DicomImport(SPMCommand):
         from glob import glob
         outputs = self._outputs().get()
         od = os.path.abspath(self.inputs.output_dir)
-        outputs['out_files'] = glob(os.path.join(od, '*'))
+
+        ext = self.inputs.format
+        if self.inputs.output_dir_struct == "flat":
+            outputs['out_files'] = glob(os.path.join(od, '*.%s'%ext))
+        elif self.inputs.output_dir_struct == 'series':
+            outputs['out_files'] = glob(os.path.join(od, os.path.join('*','*.%s'%ext)))
+        elif self.inputs.output_dir_struct in ['patid', 'date_time', 'patname']:
+            outputs['out_files'] = glob(os.path.join(od, os.path.join('*','*','*.%s'%ext)))
+        elif self.inputs.output_dir_struct == 'patid_date':
+            outputs['out_files'] = glob(os.path.join(od, os.path.join('*','*','*','*.%s'%ext)))
         return outputs
