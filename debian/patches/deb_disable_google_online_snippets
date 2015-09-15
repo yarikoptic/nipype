@@ -239,7 +239,7 @@
 --- a/doc/_templates/sidebar_versions.html
 +++ b/doc/_templates/sidebar_versions.html
 @@ -32,17 +32,9 @@
-                     src="http://www.ohloh.net/p/480871/widgets/project_users_logo.js">
+                     src="https://www.openhub.net/p/480871/widgets/project_users_logo.js">
              </script>
          </div><!-- use -->
 -        <g:plusone size="medium" annotation="none"></g:plusone>
