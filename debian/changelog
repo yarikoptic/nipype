@@ -1,6 +1,9 @@
 nipype (0.11.0-1) unstable; urgency=medium
 
   * Fresh upstream release
+  * debian/rules
+    - skip test_mesh_ops since needs X and also seems to be incompatible
+      with our mayavi2 4.3.1 (https://github.com/nipy/nipype/issues/1218)
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Tue, 15 Sep 2015 19:43:29 -0400
 
