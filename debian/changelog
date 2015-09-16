@@ -4,6 +4,8 @@ nipype (0.11.0-1) unstable; urgency=medium
   * debian/rules
     - skip test_mesh_ops since needs X and also seems to be incompatible
       with our mayavi2 4.3.1 (https://github.com/nipy/nipype/issues/1218)
+    - needed to drop --with-doctest so that test_mesh_ops doesn't get
+      imported anyhow 
   * debian/control
     - recommend mayavi2 and python-xvfbwrapper as needed by some interfaces
 

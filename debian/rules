@@ -38,7 +38,7 @@ ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	cd debian && \
 	 PYTHONPATH=$(DEB_DESTDIR)/usr/lib/python$(cdbs_python_current_version)/site-packages$(IPYTHONPATH) \
      MPLCONFIGDIR=$(CURDIR)/build \
-	  nosetests -v --with-doctest nipype -e '(test_spm_path|test_mesh_ops)'
+	  nosetests -v nipype -e '(test_spm_path|test_mesh_ops)'
     # test_mesh_ops needs X for bloody tvtk.api, and then fails anyways with current mayavi2/tvtk:
     # https://github.com/nipy/nipype/issues/1218, so skipping it for now
 endif
