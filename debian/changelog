@@ -1,4 +1,4 @@
-nipype (0.11.0+git53-g356319b-1) UNRELEASED; urgency=medium
+nipype (0.11.0+git53-g356319b-1) unstable; urgency=medium
 
   * New upstream snapshot from 0.12.0-53-g356319b -- there were a number of
     fixes after release, without visible major new features introduced),
@@ -6,6 +6,11 @@ nipype (0.11.0+git53-g356319b-1) UNRELEASED; urgency=medium
   * debian/control
     - python-{funcsigs,future,psutil} added to {Build-,}Depends
     - boosted policy to 3.9.8
+  * debian/patches
+    - refreshed
+    - deb_robust_apidocgen added to guarantee robust doc generations even
+      externals puke on import for some reason (like nitime atm)
+      (Closes: #802409)
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Wed, 03 Aug 2016 22:00:59 -0400
 

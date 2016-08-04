@@ -1,0 +1,15 @@
+--- a/tools/interfacedocgen.py
++++ b/tools/interfacedocgen.py
+@@ -289,7 +289,11 @@ class InterfaceHelpWriter(object):
+         # ad += '\n' + 'Classes' + '\n' + \
+         #    self.rst_section_levels[2] * 7 + '\n'
+         for c in classes:
+-            __import__(uri)
++            try:
++                __import__(uri)
++            except Exception as exc:
++                print('WARNING: Failed to import %s: %s.  Skipping' % (uri, exc))
++                continue
+             print(c)
+             try:
+                 with warnings.catch_warnings():
