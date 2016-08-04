@@ -1,4 +1,4 @@
-nipype (0.11.0+git53-g356319b-1) unstable; urgency=medium
+nipype (0.12.0+git53-g356319b-1) unstable; urgency=medium
 
   * New upstream snapshot from 0.12.0-53-g356319b -- there were a number of
     fixes after release, without visible major new features introduced),
