@@ -4,7 +4,7 @@ nipype (0.12.0+git53-g356319b-1) unstable; urgency=medium
     fixes after release, without visible major new features introduced),
     thus snapshot was chosen
   * debian/control
-    - python-{funcsigs,future,psutil} added to {Build-,}Depends
+    - python-{funcsigs,future,prov,psutil} added to {Build-,}Depends
     - boosted policy to 3.9.8
   * debian/patches
     - refreshed
