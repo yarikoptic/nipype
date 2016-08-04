@@ -214,10 +214,10 @@
 +<!-- google analytics snippet was completely removed by Debian maintainers.
 +     See http://lintian.debian.org/tags/privacy-breach-google-adsense.html
 +     for more information -->
- {% endblock %}
- 
- {% block header %}
-@@ -41,8 +35,7 @@
+ <script>
+   ((window.gitter = {}).chat = {}).options = {
+     room: 'nipy/nipype'
+@@ -47,8 +41,7 @@
  
  {% block footer %}
  {{ super() }}
@@ -238,13 +238,7 @@
      color: {{ theme_linkcolor }};
 --- a/doc/_templates/sidebar_versions.html
 +++ b/doc/_templates/sidebar_versions.html
-@@ -32,17 +32,9 @@
-                     src="https://www.openhub.net/p/480871/widgets/project_users_logo.js">
-             </script>
-         </div><!-- use -->
--        <g:plusone size="medium" annotation="none"></g:plusone>
-         <div class="clear"></div>
-     </div><!-- buttons container -->
+@@ -28,11 +28,4 @@
  </div>
  
  
