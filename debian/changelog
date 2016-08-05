@@ -1,4 +1,4 @@
-nipype (0.12.0+git53-g356319b-1) unstable; urgency=medium
+nipype (0.12.1+git4-gbc3a0b5-1) unstable; urgency=medium
 
   * New upstream snapshot from 0.12.0-53-g356319b -- there were a number of
     fixes after release, without visible major new features introduced),
@@ -15,7 +15,7 @@ nipype (0.12.0+git53-g356319b-1) unstable; urgency=medium
   * debian/rules
     - adjusted to find installed nipype under any -packages
 
- -- Yaroslav Halchenko <debian@onerussian.com>  Wed, 03 Aug 2016 22:00:59 -0400
+ -- Yaroslav Halchenko <debian@onerussian.com>  Thu, 04 Aug 2016 22:07:30 -0400
 
 nipype (0.11.0-1) unstable; urgency=medium
 
