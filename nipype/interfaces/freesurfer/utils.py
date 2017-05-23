@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """Interfaces to assorted Freesurfer utility programs.
@@ -9,30 +10,35 @@
    >>> os.chdir(datadir)
 
 """
-__docformat__ = 'restructuredtext'
-
+from __future__ import print_function, division, unicode_literals, absolute_import
+from builtins import str, open
 
 import os
 import re
 import shutil
 
-from ..freesurfer.base import (FSCommand, FSTraitedSpec,
-                               FSScriptCommand, FSScriptOutputSpec,
-                               FSTraitedSpecOpenMP, FSCommandOpenMP)
-from ..base import TraitedSpec, File, traits, OutputMultiPath, isdefined, CommandLine, CommandLineInputSpec
+from ... import logging
 from ...utils.filemanip import fname_presuffix, split_filename
+from ..base import (TraitedSpec, File, traits, OutputMultiPath, isdefined,
+                    CommandLine, CommandLineInputSpec)
+from .base import (FSCommand, FSTraitedSpec, FSSurfaceCommand,
+                   FSScriptCommand, FSScriptOutputSpec,
+                   FSTraitedSpecOpenMP, FSCommandOpenMP)
+__docformat__ = 'restructuredtext'
 
 filemap = dict(cor='cor', mgh='mgh', mgz='mgz', minc='mnc',
                afni='brik', brik='brik', bshort='bshort',
                spm='img', analyze='img', analyze4d='img',
                bfloat='bfloat', nifti1='img', nii='nii',
-               niigz='nii.gz')
+               niigz='nii.gz', gii='gii')
 
 filetypes = ['cor', 'mgh', 'mgz', 'minc', 'analyze',
              'analyze4d', 'spm', 'afni', 'brik', 'bshort',
              'bfloat', 'sdt', 'outline', 'otl', 'gdf',
              'nifti1', 'nii', 'niigz']
+implicit_filetypes = ['gii']
 
+logger = logging.getLogger('interface')
 
 def copy2subjdir(cls, in_file, folder=None, basename=None, subject_id=None):
     """Method to copy an input to the subjects directory"""
@@ -68,7 +74,7 @@ def copy2subjdir(cls, in_file, folder=None, basename=None, subject_id=None):
 
 def createoutputdirs(outputs):
     """create all output directories. If not created, some freesurfer interfaces fail"""
-    for output in outputs.itervalues():
+    for output in list(outputs.values()):
         dirname = os.path.dirname(output)
         if not os.path.isdir(dirname):
             os.makedirs(dirname)
@@ -148,7 +154,8 @@ class SampleToSurfaceInputSpec(FSTraitedSpec):
     frame = traits.Int(argstr="--frame %d", desc="save only one frame (0-based)")
 
     out_file = File(argstr="--o %s", genfile=True, desc="surface file to write")
-    out_type = traits.Enum(filetypes, argstr="--out_type %s", desc="output file type")
+    out_type = traits.Enum(filetypes + implicit_filetypes,
+                           argstr="--out_type %s", desc="output file type")
     hits_file = traits.Either(traits.Bool, File(exists=True), argstr="--srchit %s",
                               desc="save image with number of hits at each voxel")
     hits_type = traits.Enum(filetypes, argstr="--srchit_type", desc="hits file type")
@@ -189,18 +196,14 @@ class SampleToSurface(FSCommand):
     >>> sampler.inputs.sampling_method = "average"
     >>> sampler.inputs.sampling_range = 1
     >>> sampler.inputs.sampling_units = "frac"
+    >>> sampler.cmdline  # doctest: +ELLIPSIS +ALLOW_UNICODE
+    'mri_vol2surf --hemi lh --o ...lh.cope1.mgz --reg register.dat --projfrac-avg 1.000 --mov cope1.nii.gz'
     >>> res = sampler.run() # doctest: +SKIP
 
     """
     _cmd = "mri_vol2surf"
     input_spec = SampleToSurfaceInputSpec
     output_spec = SampleToSurfaceOutputSpec
-
-    filemap = dict(cor='cor', mgh='mgh', mgz='mgz', minc='mnc',
-                   afni='brik', brik='brik', bshort='bshort',
-                   spm='img', analyze='img', analyze4d='img',
-                   bfloat='bfloat', nifti1='img', nii='nii',
-                   niigz='nii.gz')
 
     def _format_arg(self, name, spec, value):
         if name == "sampling_method":
@@ -221,6 +224,19 @@ class SampleToSurface(FSCommand):
             return spec.argstr % self.inputs.subject_id
         if name in ["hits_file", "vox_file"]:
             return spec.argstr % self._get_outfilename(name)
+        if name == "out_type":
+            if isdefined(self.inputs.out_file):
+                _, base, ext = split_filename(self._get_outfilename())
+                if ext != filemap[value]:
+                    if ext in filemap.values():
+                        raise ValueError(
+                            "Cannot create {} file with extension "
+                            "{}".format(value, ext))
+                    else:
+                        logger.warn("Creating {} file with extension {}: "
+                                    "{}{}".format(value, ext, base, ext))
+            if value in implicit_filetypes:
+                return ""
         return super(SampleToSurface, self)._format_arg(name, spec, value)
 
     def _get_outfilename(self, opt="out_file"):
@@ -228,9 +244,9 @@ class SampleToSurface(FSCommand):
         if not isdefined(outfile) or isinstance(outfile, bool):
             if isdefined(self.inputs.out_type):
                 if opt == "hits_file":
-                    suffix = '_hits.' + self.filemap[self.inputs.out_type]
+                    suffix = '_hits.' + filemap[self.inputs.out_type]
                 else:
-                    suffix = '.' + self.filemap[self.inputs.out_type]
+                    suffix = '.' + filemap[self.inputs.out_type]
             elif opt == "hits_file":
                 suffix = "_hits.mgz"
             else:
@@ -310,6 +326,8 @@ class SurfaceSmooth(FSCommand):
     >>> smoother.inputs.subject_id = "subj_1"
     >>> smoother.inputs.hemi = "lh"
     >>> smoother.inputs.fwhm = 5
+    >>> smoother.cmdline # doctest: +ELLIPSIS +ALLOW_UNICODE
+    'mri_surf2surf --cortex --fwhm 5.0000 --hemi lh --sval lh.cope1.mgz --tval ...lh.cope1_smooth5.mgz --s subj_1'
     >>> smoother.run() # doctest: +SKIP
 
     """
@@ -358,7 +376,7 @@ class SurfaceTransformInputSpec(FSTraitedSpec):
     source_type = traits.Enum(filetypes, argstr='--sfmt %s',
                               requires=['source_file'],
                               desc="source file format")
-    target_type = traits.Enum(filetypes, argstr='--tfmt %s',
+    target_type = traits.Enum(filetypes + implicit_filetypes, argstr='--tfmt %s',
                               desc="output format")
     reshape = traits.Bool(argstr="--reshape",
                           desc="reshape output surface to conform with Nifti")
@@ -394,6 +412,22 @@ class SurfaceTransform(FSCommand):
     _cmd = "mri_surf2surf"
     input_spec = SurfaceTransformInputSpec
     output_spec = SurfaceTransformOutputSpec
+
+    def _format_arg(self, name, spec, value):
+        if name == "target_type":
+            if isdefined(self.inputs.out_file):
+                _, base, ext = split_filename(self._list_outputs()['out_file'])
+                if ext != filemap[value]:
+                    if ext in filemap.values():
+                        raise ValueError(
+                            "Cannot create {} file with extension "
+                            "{}".format(value, ext))
+                    else:
+                        logger.warn("Creating {} file with extension {}: "
+                                    "{}{}".format(value, ext, base, ext))
+            if value in implicit_filetypes:
+                return ""
+        return super(SurfaceTransform, self)._format_arg(name, spec, value)
 
     def _list_outputs(self):
         outputs = self._outputs().get()
@@ -484,7 +518,7 @@ class Surface2VolTransform(FSCommand):
     >>> xfm2vol.inputs.hemi = 'lh'
     >>> xfm2vol.inputs.template_file = 'cope1.nii.gz'
     >>> xfm2vol.inputs.subjects_dir = '.'
-    >>> xfm2vol.cmdline
+    >>> xfm2vol.cmdline # doctest: +ALLOW_UNICODE
     'mri_surf2vol --hemi lh --volreg register.mat --surfval lh.cope1.mgz --sd . --template cope1.nii.gz --outvol lh.cope1_asVol.nii --vtxvol lh.cope1_asVol_vertex.nii'
     >>> res = xfm2vol.run()# doctest: +SKIP
 
@@ -851,7 +885,7 @@ class MRIsConvertInputSpec(FSTraitedSpec):
                     xor=['out_datatype'], mandatory=True,
                     desc='output filename or True to generate one')
 
-    out_datatype = traits.Enum("ico", "tri", "stl", "vtk", "gii", "mgh", "mgz",
+    out_datatype = traits.Enum("asc", "ico", "tri", "stl", "vtk", "gii", "mgh", "mgz",
                                xor=['out_file'], mandatory=True,
                                desc="These file formats are supported:  ASCII:       .asc"
                                "ICO: .ico, .tri GEO: .geo STL: .stl VTK: .vtk GIFTI: .gii MGH surface-encoded 'volume': .mgh, .mgz")
@@ -896,7 +930,7 @@ class MRIsConvert(FSCommand):
         return outputs
 
     def _gen_filename(self, name):
-        if name is 'out_file':
+        if name == 'out_file':
             return os.path.abspath(self._gen_outfilename())
         else:
             return None
@@ -918,6 +952,76 @@ class MRIsConvert(FSCommand):
             _, name, ext = split_filename(self.inputs.in_file)
 
         return name + ext + "_converted." + self.inputs.out_datatype
+
+
+class MRIsCombineInputSpec(FSTraitedSpec):
+    """
+    Uses Freesurfer's mris_convert to combine two surface files into one.
+    """
+    in_files = traits.List(File(Exists=True), maxlen=2, minlen=2,
+                           mandatory=True, position=1, argstr='--combinesurfs %s',
+                           desc='Two surfaces to be combined.')
+    out_file = File(argstr='%s', position=-1, genfile=True,
+                    mandatory=True,
+                    desc='Output filename. Combined surfaces from in_files.')
+
+
+class MRIsCombineOutputSpec(TraitedSpec):
+    """
+    Uses Freesurfer's mris_convert to combine two surface files into one.
+    """
+    out_file = File(exists=True, desc='Output filename. Combined surfaces from '
+                                      'in_files.')
+
+
+class MRIsCombine(FSSurfaceCommand):
+    """
+    Uses Freesurfer's ``mris_convert`` to combine two surface files into one.
+
+    For complete details, see the `mris_convert Documentation.
+    <https://surfer.nmr.mgh.harvard.edu/fswiki/mris_convert>`_
+
+    If given an ``out_file`` that does not begin with ``'lh.'`` or ``'rh.'``,
+    ``mris_convert`` will prepend ``'lh.'`` to the file name.
+    To avoid this behavior, consider setting ``out_file = './<filename>'``, or
+    leaving out_file blank.
+
+    In a Node/Workflow, ``out_file`` is interpreted literally.
+
+    Example
+    -------
+
+    >>> import nipype.interfaces.freesurfer as fs
+    >>> mris = fs.MRIsCombine()
+    >>> mris.inputs.in_files = ['lh.pial', 'rh.pial']
+    >>> mris.inputs.out_file = 'bh.pial'
+    >>> mris.cmdline  # doctest: +ALLOW_UNICODE
+    'mris_convert --combinesurfs lh.pial rh.pial bh.pial'
+    >>> mris.run()  # doctest: +SKIP
+    """
+    _cmd = 'mris_convert'
+    input_spec = MRIsCombineInputSpec
+    output_spec = MRIsCombineOutputSpec
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+
+        # mris_convert --combinesurfs uses lh. as the default prefix
+        # regardless of input file names, except when path info is
+        # specified
+        path, base = os.path.split(self.inputs.out_file)
+        if path == '' and base[:3] not in ('lh.', 'rh.'):
+            base = 'lh.' + base
+        outputs['out_file'] = os.path.abspath(os.path.join(path, base))
+
+        return outputs
+
+    def _normalize_filenames(self):
+        """ In a Node context, interpret out_file as a literal path to
+        reduce surprise.
+        """
+        if isdefined(self.inputs.out_file):
+            self.inputs.out_file = os.path.abspath(self.inputs.out_file)
 
 
 class MRITessellateInputSpec(FSTraitedSpec):
@@ -964,7 +1068,7 @@ class MRITessellate(FSCommand):
         return outputs
 
     def _gen_filename(self, name):
-        if name is 'out_file':
+        if name == 'out_file':
             return self._gen_outfilename()
         else:
             return None
@@ -986,8 +1090,8 @@ class MRIPretessInputSpec(FSTraitedSpec):
                                 '\'wm\' or a label value (e.g. 127 for rh or 255 for lh)'))
     in_norm = File(exists=True, mandatory=True, position=-2, argstr='%s',
                    desc=('the normalized, brain-extracted T1w image. Usually norm.mgz'))
-    out_file = File(position=-1, argstr='%s', genfile=True,
-                    desc=('the output file after mri_pretess.'))
+    out_file = File(position=-1, argstr='%s', name_source=['in_filled'], name_template='%s_pretesswm',
+                    keep_extension=True, desc='the output file after mri_pretess.')
 
     nocorners = traits.Bool(False, argstr='-nocorners', desc=('do not remove corner configurations'
                                                               ' in addition to edge ones.'))
@@ -1020,31 +1124,14 @@ class MRIPretess(FSCommand):
     >>> pretess.inputs.in_filled = 'wm.mgz'
     >>> pretess.inputs.in_norm = 'norm.mgz'
     >>> pretess.inputs.nocorners = True
-    >>> pretess.cmdline
+    >>> pretess.cmdline # doctest: +ALLOW_UNICODE
     'mri_pretess -nocorners wm.mgz wm norm.mgz wm_pretesswm.mgz'
     >>> pretess.run() # doctest: +SKIP
+
     """
     _cmd = 'mri_pretess'
     input_spec = MRIPretessInputSpec
     output_spec = MRIPretessOutputSpec
-
-    def _list_outputs(self):
-        outputs = self.output_spec().get()
-        outputs['out_file'] = os.path.abspath(self._gen_outfilename())
-        return outputs
-
-    def _gen_filename(self, name):
-        if name is 'out_file':
-            return self._gen_outfilename()
-        else:
-            return None
-
-    def _gen_outfilename(self):
-        if isdefined(self.inputs.out_file):
-            return self.inputs.out_file
-        else:
-            _, name, ext = split_filename(self.inputs.in_filled)
-            return name + '_pretess' + str(self.inputs.label) + ext
 
 
 class MRIMarchingCubesInputSpec(FSTraitedSpec):
@@ -1091,7 +1178,7 @@ class MRIMarchingCubes(FSCommand):
         return outputs
 
     def _gen_filename(self, name):
-        if name is 'out_file':
+        if name == 'out_file':
             return self._gen_outfilename()
         else:
             return None
@@ -1165,7 +1252,7 @@ class SmoothTessellation(FSCommand):
         return outputs
 
     def _gen_filename(self, name):
-        if name is 'out_file':
+        if name == 'out_file':
             return self._gen_outfilename()
         else:
             return None
@@ -1207,7 +1294,7 @@ class MakeAverageSubject(FSCommand):
 
     >>> from nipype.interfaces.freesurfer import MakeAverageSubject
     >>> avg = MakeAverageSubject(subjects_ids=['s1', 's2'])
-    >>> avg.cmdline
+    >>> avg.cmdline # doctest: +ALLOW_UNICODE
     'make_average_subject --out average --subjects s1 s2'
 
     """
@@ -1242,7 +1329,7 @@ class ExtractMainComponent(CommandLine):
 
     >>> from nipype.interfaces.freesurfer import ExtractMainComponent
     >>> mcmp = ExtractMainComponent(in_file='lh.pial')
-    >>> mcmp.cmdline
+    >>> mcmp.cmdline # doctest: +ALLOW_UNICODE
     'mris_extract_main_component lh.pial lh.maincmp'
 
     """
@@ -1305,7 +1392,7 @@ class Tkregister2(FSCommand):
     >>> tk2.inputs.moving_image = 'T1.mgz'
     >>> tk2.inputs.target_image = 'structural.nii'
     >>> tk2.inputs.reg_header = True
-    >>> tk2.cmdline
+    >>> tk2.cmdline # doctest: +ALLOW_UNICODE
     'tkregister2 --mov T1.mgz --noedit --reg T1_to_native.dat --regheader \
 --targ structural.nii'
     >>> tk2.run() # doctest: +SKIP
@@ -1318,7 +1405,7 @@ class Tkregister2(FSCommand):
     >>> tk2 = Tkregister2()
     >>> tk2.inputs.moving_image = 'epi.nii'
     >>> tk2.inputs.fsl_in_matrix = 'flirt.mat'
-    >>> tk2.cmdline
+    >>> tk2.cmdline # doctest: +ALLOW_UNICODE
     'tkregister2 --fsl flirt.mat --mov epi.nii --noedit --reg register.dat'
     >>> tk2.run() # doctest: +SKIP
     """
@@ -1372,11 +1459,11 @@ class AddXFormToHeader(FSCommand):
     >>> adder = AddXFormToHeader()
     >>> adder.inputs.in_file = 'norm.mgz'
     >>> adder.inputs.transform = 'trans.mat'
-    >>> adder.cmdline
+    >>> adder.cmdline # doctest: +ALLOW_UNICODE
     'mri_add_xform_to_header trans.mat norm.mgz output.mgz'
 
     >>> adder.inputs.copy_name = True
-    >>> adder.cmdline
+    >>> adder.cmdline # doctest: +ALLOW_UNICODE
     'mri_add_xform_to_header -c trans.mat norm.mgz output.mgz'
 
     >>> adder.run()   # doctest: +SKIP
@@ -1430,7 +1517,7 @@ class CheckTalairachAlignment(FSCommand):
 
     >>> checker.inputs.in_file = 'trans.mat'
     >>> checker.inputs.threshold = 0.005
-    >>> checker.cmdline
+    >>> checker.cmdline # doctest: +ALLOW_UNICODE
     'talairach_afd -T 0.005 -xfm trans.mat'
 
     >>> checker.run() # doctest: +SKIP
@@ -1479,7 +1566,7 @@ class TalairachAVI(FSCommand):
     >>> example = TalairachAVI()
     >>> example.inputs.in_file = 'norm.mgz'
     >>> example.inputs.out_file = 'trans.mat'
-    >>> example.cmdline
+    >>> example.cmdline # doctest: +ALLOW_UNICODE
     'talairach_avi --i norm.mgz --xfm trans.mat'
 
     >>> example.run() # doctest: +SKIP
@@ -1510,7 +1597,7 @@ class TalairachQC(FSScriptCommand):
     >>> from nipype.interfaces.freesurfer import TalairachQC
     >>> qc = TalairachQC()
     >>> qc.inputs.log_file = 'dirs.txt'
-    >>> qc.cmdline
+    >>> qc.cmdline # doctest: +ALLOW_UNICODE
     'tal_QC_AZS dirs.txt'
     """
     _cmd = "tal_QC_AZS"
@@ -1549,7 +1636,7 @@ class RemoveNeck(FSCommand):
     >>> remove_neck.inputs.in_file = 'norm.mgz'
     >>> remove_neck.inputs.transform = 'trans.mat'
     >>> remove_neck.inputs.template = 'trans.mat'
-    >>> remove_neck.cmdline
+    >>> remove_neck.cmdline # doctest: +ALLOW_UNICODE
     'mri_remove_neck norm.mgz trans.mat trans.mat norm_noneck.mgz'
     """
     _cmd = "mri_remove_neck"
@@ -1689,7 +1776,7 @@ class Sphere(FSCommandOpenMP):
     >>> from nipype.interfaces.freesurfer import Sphere
     >>> sphere = Sphere()
     >>> sphere.inputs.in_file = 'lh.pial'
-    >>> sphere.cmdline
+    >>> sphere.cmdline # doctest: +ALLOW_UNICODE
     'mris_sphere lh.pial lh.sphere'
     """
     _cmd = 'mris_sphere'
@@ -1813,7 +1900,7 @@ class EulerNumber(FSCommand):
     >>> from nipype.interfaces.freesurfer import EulerNumber
     >>> ft = EulerNumber()
     >>> ft.inputs.in_file = 'lh.pial'
-    >>> ft.cmdline
+    >>> ft.cmdline # doctest: +ALLOW_UNICODE
     'mris_euler_number lh.pial'
     """
     _cmd = 'mris_euler_number'
@@ -1849,7 +1936,7 @@ class RemoveIntersection(FSCommand):
     >>> from nipype.interfaces.freesurfer import RemoveIntersection
     >>> ri = RemoveIntersection()
     >>> ri.inputs.in_file = 'lh.pial'
-    >>> ri.cmdline
+    >>> ri.cmdline # doctest: +ALLOW_UNICODE
     'mris_remove_intersection lh.pial lh.pial'
     """
 
@@ -1945,7 +2032,7 @@ class MakeSurfaces(FSCommand):
     >>> makesurfaces.inputs.in_label = 'aparc+aseg.nii'
     >>> makesurfaces.inputs.in_T1 = 'T1.mgz'
     >>> makesurfaces.inputs.orig_pial = 'lh.pial'
-    >>> makesurfaces.cmdline
+    >>> makesurfaces.cmdline # doctest: +ALLOW_UNICODE
     'mris_make_surfaces -T1 T1.mgz -orig pial -orig_pial pial 10335 lh'
     """
 
@@ -2078,7 +2165,7 @@ class Curvature(FSCommand):
     >>> curv = Curvature()
     >>> curv.inputs.in_file = 'lh.pial'
     >>> curv.inputs.save = True
-    >>> curv.cmdline
+    >>> curv.cmdline # doctest: +ALLOW_UNICODE
     'mris_curvature -w lh.pial'
     """
 
@@ -2172,7 +2259,7 @@ class CurvatureStats(FSCommand):
     >>> curvstats.inputs.values = True
     >>> curvstats.inputs.min_max = True
     >>> curvstats.inputs.write = True
-    >>> curvstats.cmdline
+    >>> curvstats.cmdline # doctest: +ALLOW_UNICODE
     'mris_curvature_stats -m -o lh.curv.stats -F pial -G --writeCurvatureFiles subject_id lh pial pial'
     """
 
@@ -2229,7 +2316,7 @@ class Jacobian(FSCommand):
     >>> jacobian = Jacobian()
     >>> jacobian.inputs.in_origsurf = 'lh.pial'
     >>> jacobian.inputs.in_mappedsurf = 'lh.pial'
-    >>> jacobian.cmdline
+    >>> jacobian.cmdline # doctest: +ALLOW_UNICODE
     'mris_jacobian lh.pial lh.pial lh.jacobian'
     """
 
@@ -2366,7 +2453,7 @@ class VolumeMask(FSCommand):
     >>> volmask.inputs.rh_white = 'lh.pial'
     >>> volmask.inputs.subject_id = '10335'
     >>> volmask.inputs.save_ribbon = True
-    >>> volmask.cmdline
+    >>> volmask.cmdline # doctest: +ALLOW_UNICODE
     'mris_volmask --label_left_ribbon 3 --label_left_white 2 --label_right_ribbon 42 --label_right_white 41 --save_ribbon 10335'
     """
 
@@ -2706,7 +2793,7 @@ class RelabelHypointensities(FSCommand):
     >>> relabelhypos.inputs.rh_white = 'lh.pial'
     >>> relabelhypos.inputs.surf_directory = '.'
     >>> relabelhypos.inputs.aseg = 'aseg.mgz'
-    >>> relabelhypos.cmdline
+    >>> relabelhypos.cmdline # doctest: +ALLOW_UNICODE
     'mri_relabel_hypointensities aseg.mgz . aseg.hypos.mgz'
     """
 
@@ -2877,7 +2964,7 @@ class Apas2Aseg(FSCommand):
     >>> apas2aseg = Apas2Aseg()
     >>> apas2aseg.inputs.in_file = 'aseg.mgz'
     >>> apas2aseg.inputs.out_file = 'output.mgz'
-    >>> apas2aseg.cmdline
+    >>> apas2aseg.cmdline # doctest: +ALLOW_UNICODE
     'apas2aseg --i aseg.mgz --o output.mgz'
     """
 
@@ -2889,3 +2976,107 @@ class Apas2Aseg(FSCommand):
         outputs = self._outputs().get()
         outputs["out_file"] = os.path.abspath(self.inputs.out_file)
         return outputs
+
+
+class MRIsExpandInputSpec(FSTraitedSpec):
+    # Input spec derived from
+    # https://github.com/freesurfer/freesurfer/blob/102e053/mris_expand/mris_expand.c
+    in_file = File(
+        exists=True, mandatory=True, argstr='%s', position=-3, copyfile=False,
+        desc='Surface to expand')
+    distance = traits.Float(
+        mandatory=True, argstr='%g', position=-2,
+        desc='Distance in mm or fraction of cortical thickness')
+    out_name = traits.Str(
+        'expanded', argstr='%s', position=-1, usedefault=True,
+        desc=('Output surface file\n'
+              'If no path, uses directory of `in_file`\n'
+              'If no path AND missing "lh." or "rh.", derive from `in_file`'))
+    thickness = traits.Bool(
+        argstr='-thickness',
+        desc='Expand by fraction of cortical thickness, not mm')
+    thickness_name = traits.Str(
+        argstr="-thickness_name %s", copyfile=False,
+        desc=('Name of thickness file (implicit: "thickness")\n'
+              'If no path, uses directory of `in_file`\n'
+              'If no path AND missing "lh." or "rh.", derive from `in_file`'))
+    pial = traits.Str(
+        argstr='-pial %s', copyfile=False,
+        desc=('Name of pial file (implicit: "pial")\n'
+              'If no path, uses directory of `in_file`\n'
+              'If no path AND missing "lh." or "rh.", derive from `in_file`'))
+    sphere = traits.Str(
+        'sphere', copyfile=False, usedefault=True,
+        desc='WARNING: Do not change this trait')
+    spring = traits.Float(argstr='-S %g', desc="Spring term (implicit: 0.05)")
+    dt = traits.Float(argstr='-T %g', desc='dt (implicit: 0.25)')
+    write_iterations = traits.Int(
+        argstr='-W %d',
+        desc='Write snapshots of expansion every N iterations')
+    smooth_averages = traits.Int(
+        argstr='-A %d',
+        desc='Smooth surface with N iterations after expansion')
+    nsurfaces = traits.Int(
+        argstr='-N %d',
+        desc='Number of surfacces to write during expansion')
+    # # Requires dev version - Re-add when min_ver/max_ver support this
+    # # https://github.com/freesurfer/freesurfer/blob/9730cb9/mris_expand/mris_expand.c
+    # navgs = traits.Tuple(
+    #     traits.Int, traits.Int,
+    #     argstr='-navgs %d %d',
+    #     desc=('Tuple of (n_averages, min_averages) parameters '
+    #           '(implicit: (16, 0))'))
+    # target_intensity = traits.Tuple(
+    #     traits.Float, traits.File(exists=True),
+    #     argstr='-intensity %g %s',
+    #     desc='Tuple of intensity and brain volume to crop to target intensity')
+
+
+class MRIsExpandOutputSpec(TraitedSpec):
+    out_file = File(desc='Output surface file')
+
+
+class MRIsExpand(FSSurfaceCommand):
+    """
+    Expands a surface (typically ?h.white) outwards while maintaining
+    smoothness and self-intersection constraints.
+
+    Examples
+    ========
+    >>> from nipype.interfaces.freesurfer import MRIsExpand
+    >>> mris_expand = MRIsExpand(thickness=True, distance=0.5)
+    >>> mris_expand.inputs.in_file = 'lh.white'
+    >>> mris_expand.cmdline # doctest: +ALLOW_UNICODE
+    'mris_expand -thickness lh.white 0.5 expanded'
+    >>> mris_expand.inputs.out_name = 'graymid'
+    >>> mris_expand.cmdline # doctest: +ALLOW_UNICODE
+    'mris_expand -thickness lh.white 0.5 graymid'
+    """
+    _cmd = 'mris_expand'
+    input_spec = MRIsExpandInputSpec
+    output_spec = MRIsExpandOutputSpec
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs['out_file'] = self._associated_file(self.inputs.in_file,
+                                                    self.inputs.out_name)
+        return outputs
+
+    def _normalize_filenames(self):
+        """ Find full paths for pial, thickness and sphere files for copying
+        """
+        in_file = self.inputs.in_file
+
+        pial = self.inputs.pial
+        if not isdefined(pial):
+            pial = 'pial'
+        self.inputs.pial = self._associated_file(in_file, pial)
+
+        if isdefined(self.inputs.thickness) and self.inputs.thickness:
+            thickness_name = self.inputs.thickness_name
+            if not isdefined(thickness_name):
+                thickness_name = 'thickness'
+            self.inputs.thickness_name = self._associated_file(in_file,
+                                                               thickness_name)
+
+        self.inputs.sphere = self._associated_file(in_file, self.inputs.sphere)

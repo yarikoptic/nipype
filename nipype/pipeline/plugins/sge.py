@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
 """Parallel workflow execution via SGE
 """
+from __future__ import print_function, division, unicode_literals, absolute_import
 
 from builtins import object
 
@@ -13,8 +15,8 @@ import xml.dom.minidom
 
 import random
 
+from ...interfaces.base import CommandLine
 from .base import (SGELikeBatchManagerBase, logger, iflogger, logging)
-from nipype.interfaces.base import CommandLine
 
 DEBUGGING_PREFIX = str(int(random.uniform(100, 999)))
 
@@ -45,16 +47,14 @@ class QJobInfo(object):
         self._job_info_creation_time = time.time(
         )  # When this job was created (for comparing against initalization)
         self._job_queue_name = job_queue_name  # Where the job is running
-        self._job_slots = job_slots  # How many slots are being used
+        self._job_slots = int(job_slots)  # How many slots are being used
         self._qsub_command_line = qsub_command_line
 
     def __repr__(self):
-        return str(self._job_num).ljust(8) \
-            + str(self._job_queue_state).ljust(12) \
-            + str(self._job_slots).ljust(3) \
-            + time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(self._job_time)).ljust(20) \
-            + str(self._job_queue_name).ljust(8) \
-            + str(self._qsub_command_line)
+        return '{:<8d}{:12}{:<3d}{:20}{:8}{}'.format(
+            self._job_num, self._job_queue_state, self._job_slots,
+            time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(self._job_time)),
+            self._job_queue_name, self._qsub_command_line)
 
     def is_initializing(self):
         return self._job_queue_state == "initializing"
@@ -91,7 +91,7 @@ class QJobInfo(object):
         self._job_queue_state = job_queue_state
         self._job_time = job_time
         self._job_queue_name = job_queue_name
-        self._job_slots = job_slots
+        self._job_slots = int(job_slots)
 
     def set_state(self, new_state):
         self._job_queue_state = new_state
@@ -176,10 +176,10 @@ class QstatSubstitute(object):
             except:
                 job_queue_name = "unknown"
             try:
-                job_slots = current_job_element.getElementsByTagName(
-                    'slots')[0].childNodes[0].data
+                job_slots = int(current_job_element.getElementsByTagName(
+                    'slots')[0].childNodes[0].data)
             except:
-                job_slots = "unknown"
+                job_slots = -1
             job_queue_state = current_job_element.getAttribute('state')
             job_num = int(current_job_element.getElementsByTagName(
                 'JB_job_number')[0].childNodes[0].data)
@@ -312,9 +312,9 @@ def qsub_sanitize_job_name(testjobname):
 
     Numbers and punctuation are  not allowed.
 
-    >>> qsub_sanitize_job_name('01')
+    >>> qsub_sanitize_job_name('01') # doctest: +ALLOW_UNICODE
     'J01'
-    >>> qsub_sanitize_job_name('a01')
+    >>> qsub_sanitize_job_name('a01') # doctest: +ALLOW_UNICODE
     'a01'
     """
     if testjobname[0].isalpha():

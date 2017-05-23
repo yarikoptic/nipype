@@ -7,13 +7,16 @@ Change directory to provide relative paths for doctests
    >>> datadir = os.path.realpath(os.path.join(filepath, '../../testing/data'))
    >>> os.chdir(datadir)
 """
+from __future__ import print_function, division, unicode_literals, absolute_import
+
 import os.path as op
 import nibabel as nb
 import numpy as np
 
+from ... import logging
 from ..base import (traits, TraitedSpec, File, isdefined)
 from .base import DipyBaseInterface
-from ... import logging
+
 IFLOGGER = logging.getLogger('interface')
 
 
@@ -176,6 +179,7 @@ def resample_proxy(in_file, order=3, new_zooms=None, out_file=None):
     Performs regridding of an image to set isotropic voxel sizes using dipy.
     """
     from dipy.align.reslice import reslice
+    from nipype.utils import NUMPY_MMAP
 
     if out_file is None:
         fname, fext = op.splitext(op.basename(in_file))
@@ -184,7 +188,7 @@ def resample_proxy(in_file, order=3, new_zooms=None, out_file=None):
             fext = fext2 + fext
         out_file = op.abspath('./%s_reslice%s' % (fname, fext))
 
-    img = nb.load(in_file)
+    img = nb.load(in_file, mmap=NUMPY_MMAP)
     hdr = img.header.copy()
     data = img.get_data().astype(np.float32)
     affine = img.affine
@@ -219,6 +223,7 @@ def nlmeans_proxy(in_file, settings,
     from dipy.denoise.nlmeans import nlmeans
     from scipy.ndimage.morphology import binary_erosion
     from scipy import ndimage
+    from nipype.utils import NUMPY_MMAP
 
     if out_file is None:
         fname, fext = op.splitext(op.basename(in_file))
@@ -227,7 +232,7 @@ def nlmeans_proxy(in_file, settings,
             fext = fext2 + fext
         out_file = op.abspath('./%s_denoise%s' % (fname, fext))
 
-    img = nb.load(in_file)
+    img = nb.load(in_file, mmap=NUMPY_MMAP)
     hdr = img.header
     data = img.get_data()
     aff = img.affine

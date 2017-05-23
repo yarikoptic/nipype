@@ -3,15 +3,20 @@
 Interfaces to the reconstruction algorithms in dipy
 
 """
+from __future__ import print_function, division, unicode_literals, absolute_import
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str, open
+
 import os.path as op
 
 import numpy as np
 import nibabel as nb
 
-from nipype.interfaces.base import TraitedSpec, File, traits, isdefined
+from ... import logging
+from ..base import TraitedSpec, File, traits, isdefined
 from .base import DipyDiffusionInterface, DipyBaseInterfaceInputSpec
 
-from nipype import logging
 IFLOGGER = logging.getLogger('interface')
 
 
@@ -146,7 +151,7 @@ class RESTORE(DipyDiffusionInterface):
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        for k in outputs.keys():
+        for k in list(outputs.keys()):
             outputs[k] = self._gen_filename(k)
         return outputs
 
@@ -161,11 +166,9 @@ class EstimateResponseSHInputSpec(DipyBaseInterfaceInputSpec):
     roi_radius = traits.Int(
         10, usedefault=True, desc=('ROI radius to be used in auto_response'))
     auto = traits.Bool(
-        True, usedefault=True, xor=['recursive'],
-        desc='use the auto_response estimator from dipy')
+        xor=['recursive'], desc='use the auto_response estimator from dipy')
     recursive = traits.Bool(
-        False, usedefault=True, xor=['auto'],
-        desc='use the recursive response estimator from dipy')
+        xor=['auto'], desc='use the recursive response estimator from dipy')
     response = File(
         'response.txt', usedefault=True, desc=('the output response file'))
     out_mask = File('wm_mask.nii.gz', usedefault=True, desc='computed wm mask')
@@ -206,6 +209,7 @@ class EstimateResponseSH(DipyDiffusionInterface):
         from dipy.reconst.csdeconv import recursive_response, auto_response
 
         img = nb.load(self.inputs.in_file)
+        imref = nb.four_to_three(img)[0]
         affine = img.get_affine()
 
         if isdefined(self.inputs.in_mask):
@@ -317,7 +321,7 @@ class CSD(DipyDiffusionInterface):
         from dipy.reconst.csdeconv import ConstrainedSphericalDeconvModel
         from dipy.data import get_sphere
         # import marshal as pickle
-        import cPickle as pickle
+        import pickle as pickle
         import gzip
 
         img = nb.load(self.inputs.in_file)

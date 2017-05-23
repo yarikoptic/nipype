@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """ANTS Apply Transforms interface
 
    Change directory to provide relative paths for doctests
@@ -6,11 +7,14 @@
    >>> datadir = os.path.realpath(os.path.join(filepath, '../../testing/data'))
    >>> os.chdir(datadir)
 """
+from __future__ import print_function, division, unicode_literals, absolute_import
+
 import os
 
-from .base import ANTSCommand, ANTSCommandInputSpec
-from ..base import TraitedSpec, File, traits, isdefined, InputMultiPath
 from ...utils.filemanip import split_filename
+from ..base import (TraitedSpec, File, traits, isdefined, InputMultiPath,
+                    CommandLine, CommandLineInputSpec)
+from .base import ANTSCommand, ANTSCommandInputSpec
 
 
 class AverageAffineTransformInputSpec(ANTSCommandInputSpec):
@@ -35,7 +39,7 @@ class AverageAffineTransform(ANTSCommand):
     >>> avg.inputs.dimension = 3
     >>> avg.inputs.transforms = ['trans.mat', 'func_to_struct.mat']
     >>> avg.inputs.output_affine_transform = 'MYtemplatewarp.mat'
-    >>> avg.cmdline
+    >>> avg.cmdline # doctest: +ALLOW_UNICODE
     'AverageAffineTransform 3 MYtemplatewarp.mat trans.mat func_to_struct.mat'
     """
     _cmd = 'AverageAffineTransform'
@@ -77,7 +81,7 @@ class AverageImages(ANTSCommand):
     >>> avg.inputs.output_average_image = "average.nii.gz"
     >>> avg.inputs.normalize = True
     >>> avg.inputs.images = ['rc1s1.nii', 'rc1s1.nii']
-    >>> avg.cmdline
+    >>> avg.cmdline # doctest: +ALLOW_UNICODE
     'AverageImages 3 average.nii.gz 1 rc1s1.nii rc1s1.nii'
     """
     _cmd = 'AverageImages'
@@ -118,7 +122,7 @@ class MultiplyImages(ANTSCommand):
     >>> test.inputs.first_input = 'moving2.nii'
     >>> test.inputs.second_input = 0.25
     >>> test.inputs.output_product_image = "out.nii"
-    >>> test.cmdline
+    >>> test.cmdline # doctest: +ALLOW_UNICODE
     'MultiplyImages 3 moving2.nii 0.25 out.nii'
     """
     _cmd = 'MultiplyImages'
@@ -134,65 +138,90 @@ class MultiplyImages(ANTSCommand):
             self.inputs.output_product_image)
         return outputs
 
-
-class JacobianDeterminantInputSpec(ANTSCommandInputSpec):
-    dimension = traits.Enum(3, 2, argstr='%d', usedefault=False, mandatory=True,
+class CreateJacobianDeterminantImageInputSpec(ANTSCommandInputSpec):
+    imageDimension = traits.Enum(3, 2, argstr='%d', usedefault=False, mandatory=True,
                             position=0, desc='image dimension (2 or 3)')
-    warp_file = File(argstr='%s', exists=True, mandatory=True,
-                     position=1, desc='input warp file')
-    output_prefix = File(argstr='%s', genfile=True, hash_files=False,
+    deformationField = File(argstr='%s', exists=True, mandatory=True,
+                     position=1, desc='deformation transformation file')
+    outputImage = File(argstr='%s', mandatory=True,
                          position=2,
-                         desc=('prefix of the output image filename: '
-                               'PREFIX(log)jacobian.nii.gz'))
-    use_log = traits.Enum(0, 1, argstr='%d', position=3,
-                          desc='log transform the jacobian determinant')
-    template_mask = File(argstr='%s', exists=True, position=4,
-                         desc='template mask to adjust for head size')
-    norm_by_total = traits.Enum(0, 1, argstr='%d', position=5,
-                                desc=('normalize jacobian by total in mask to '
-                                      'adjust for head size'))
-    projection_vector = traits.List(traits.Float(), argstr='%s', sep='x',
-                                    position=6,
-                                    desc='vector to project warp against')
+                         desc='output filename')
+    doLogJacobian = traits.Enum(0, 1, argstr='%d', position=3,
+                          desc='return the log jacobian')
+    useGeometric = traits.Enum(0, 1, argstr='%d', position=4,
+                          desc='return the geometric jacobian')
 
+class CreateJacobianDeterminantImageOutputSpec(TraitedSpec):
+    jacobian_image = File(exists=True, desc='jacobian image')
 
-class JacobianDeterminantOutputSpec(TraitedSpec):
-    jacobian_image = File(exists=True, desc='(log transformed) jacobian image')
-
-
-class JacobianDeterminant(ANTSCommand):
+class CreateJacobianDeterminantImage(ANTSCommand):
     """
     Examples
     --------
-    >>> from nipype.interfaces.ants import JacobianDeterminant
-    >>> jacobian = JacobianDeterminant()
-    >>> jacobian.inputs.dimension = 3
-    >>> jacobian.inputs.warp_file = 'ants_Warp.nii.gz'
-    >>> jacobian.inputs.output_prefix = 'Sub001_'
-    >>> jacobian.inputs.use_log = 1
-    >>> jacobian.cmdline
-    'ANTSJacobian 3 ants_Warp.nii.gz Sub001_ 1'
+    >>> from nipype.interfaces.ants import CreateJacobianDeterminantImage
+    >>> jacobian = CreateJacobianDeterminantImage()
+    >>> jacobian.inputs.imageDimension = 3
+    >>> jacobian.inputs.deformationField = 'ants_Warp.nii.gz'
+    >>> jacobian.inputs.outputImage = 'out_name.nii.gz'
+    >>> jacobian.cmdline # doctest: +ALLOW_UNICODE
+    'CreateJacobianDeterminantImage 3 ants_Warp.nii.gz out_name.nii.gz'
     """
 
-    _cmd = 'ANTSJacobian'
-    input_spec = JacobianDeterminantInputSpec
-    output_spec = JacobianDeterminantOutputSpec
+    _cmd = 'CreateJacobianDeterminantImage'
+    input_spec = CreateJacobianDeterminantImageInputSpec
+    output_spec = CreateJacobianDeterminantImageOutputSpec
 
-    def _gen_filename(self, name):
-        if name == 'output_prefix':
-            output = self.inputs.output_prefix
-            if not isdefined(output):
-                _, name, ext = split_filename(self.inputs.warp_file)
-                output = name + '_'
-            return output
-        return None
+    def _format_arg(self, opt, spec, val):
+        return super(CreateJacobianDeterminantImage, self)._format_arg(opt, spec, val)
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        if self.inputs.use_log == 1:
-            outputs['jacobian_image'] = os.path.abspath(
-                self._gen_filename('output_prefix') + 'logjacobian.nii.gz')
-        else:
-            outputs['jacobian_image'] = os.path.abspath(
-                self._gen_filename('output_prefix') + 'jacobian.nii.gz')
+        outputs['jacobian_image'] = os.path.abspath(
+            self.inputs.outputImage)
         return outputs
+
+
+class AffineInitializerInputSpec(CommandLineInputSpec):
+    dimension = traits.Enum(3, 2, usedefault=True, position=0, argstr='%s',
+                            desc='dimension')
+    fixed_image = File(exists=True, mandatory=True, position=1, argstr='%s',
+                       desc='reference image')
+    moving_image = File(exists=True, mandatory=True, position=2, argstr='%s',
+                        desc='moving image')
+    out_file = File('transform.mat', usedefault=True, position=3, argstr='%s',
+                    desc='output transform file')
+    # Defaults in antsBrainExtraction.sh -> 15 0.1 0 10
+    search_factor = traits.Float(15.0, usedefault=True, position=4, argstr='%f',
+                                 desc='increments (degrees) for affine search')
+    radian_fraction = traits.Range(0.0, 1.0, value=0.1, usedefault=True, position=5,
+                                   argstr='%f', desc='search this arc +/- principal axes')
+    principal_axes = traits.Bool(
+        False, usedefault=True, position=6, argstr='%d',
+        desc='whether the rotation is searched around an initial principal axis alignment.')
+    local_search = traits.Int(
+        10, usedefault=True, position=7, argstr='%d',
+        desc=' determines if a local optimization is run at each search point for the set '
+             'number of iterations')
+
+class AffineInitializerOutputSpec(TraitedSpec):
+    out_file = File(desc='output transform file')
+
+
+class AffineInitializer(CommandLine):
+    """
+    Initialize an affine transform (as in antsBrainExtraction.sh)
+
+    >>> from nipype.interfaces.ants import AffineInitializer
+    >>> init = AffineInitializer()
+    >>> init.inputs.fixed_image = 'fixed1.nii'
+    >>> init.inputs.moving_image = 'moving1.nii'
+    >>> init.cmdline # doctest: +ALLOW_UNICODE
+    'antsAffineInitializer 3 fixed1.nii moving1.nii transform.mat 15.000000 0.100000 0 10'
+
+    """
+    _cmd = 'antsAffineInitializer'
+    input_spec = AffineInitializerInputSpec
+    output_spec = AffineInitializerOutputSpec
+
+    def _list_outputs(self):
+        return {'out_file': os.path.abspath(self.inputs.out_file)}

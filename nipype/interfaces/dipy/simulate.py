@@ -5,19 +5,18 @@
    >>> datadir = os.path.realpath(os.path.join(filepath, '../../testing/data'))
    >>> os.chdir(datadir)
 """
-
-from __future__ import division
+from __future__ import print_function, division, unicode_literals, absolute_import
 from multiprocessing import (Pool, cpu_count)
 import os.path as op
 from builtins import range
 
-
 import nibabel as nb
 
+from ... import logging
+from ...utils import NUMPY_MMAP
 from ..base import (traits, TraitedSpec, BaseInterfaceInputSpec,
                     File, InputMultiPath, isdefined)
 from .base import DipyBaseInterface
-from ... import logging
 IFLOGGER = logging.getLogger('interface')
 
 
@@ -120,7 +119,7 @@ class SimulateMultiTensor(DipyBaseInterface):
         # Volume fractions of isotropic compartments
         nballs = len(self.inputs.in_vfms)
         vfs = np.squeeze(nb.concat_images(
-            [nb.load(f) for f in self.inputs.in_vfms]).get_data())
+            [nb.load(f, mmap=NUMPY_MMAP) for f in self.inputs.in_vfms]).get_data())
         if nballs == 1:
             vfs = vfs[..., np.newaxis]
         total_vf = np.sum(vfs, axis=3)
@@ -138,7 +137,7 @@ class SimulateMultiTensor(DipyBaseInterface):
         nvox = len(msk[msk > 0])
 
         # Fiber fractions
-        ffsim = nb.concat_images([nb.load(f) for f in self.inputs.in_frac])
+        ffsim = nb.concat_images([nb.load(f, mmap=NUMPY_MMAP) for f in self.inputs.in_frac])
         ffs = np.nan_to_num(np.squeeze(ffsim.get_data()))  # fiber fractions
         ffs = np.clip(ffs, 0., 1.)
         if nsticks == 1:
@@ -181,7 +180,7 @@ class SimulateMultiTensor(DipyBaseInterface):
         dirs = None
         for i in range(nsticks):
             f = self.inputs.in_dirs[i]
-            fd = np.nan_to_num(nb.load(f).get_data())
+            fd = np.nan_to_num(nb.load(f, mmap=NUMPY_MMAP).get_data())
             w = np.linalg.norm(fd, axis=3)[..., np.newaxis]
             w[w < np.finfo(float).eps] = 1.0
             fd /= w

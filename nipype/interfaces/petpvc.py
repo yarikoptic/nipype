@@ -8,23 +8,12 @@
    >>> datadir = os.path.realpath(os.path.join(filepath, '../testing/data'))
    >>> os.chdir(datadir)
 """
-
-from __future__ import print_function
-from __future__ import division
+from __future__ import print_function, division, unicode_literals, absolute_import
 
 import os
-import warnings
 
-from nipype.interfaces.base import (
-    TraitedSpec,
-    CommandLineInputSpec,
-    CommandLine,
-    File,
-    isdefined,
-    traits,
-)
-
-warn = warnings.warn
+from .base import TraitedSpec, CommandLineInputSpec, CommandLine, File, isdefined, traits
+from ..external.due import due, Doi, BibTeX
 
 pvc_methods = ['GTM',
                'IY',
@@ -82,8 +71,6 @@ class PETPVC(CommandLine):
     "A review of partial volume correction techniques for emission tomography
     and their applications in neurology, cardiology and oncology," Phys. Med.
     Biol., vol. 57, no. 21, p. R119, 2012.
-
-    There is a publication waiting to be accepted for this software tool.
 
     Its command line help shows this:
 
@@ -158,6 +145,23 @@ class PETPVC(CommandLine):
     input_spec = PETPVCInputSpec
     output_spec = PETPVCOutputSpec
     _cmd = 'petpvc'
+
+    references_ = [{'entry': BibTeX("@article{0031-9155-61-22-7975,"
+                                    "author={Benjamin A Thomas and Vesna Cuplov and Alexandre Bousse and "
+                                             "Adriana Mendes and Kris Thielemans and Brian F Hutton and Kjell Erlandsson},"
+                                    "title={PETPVC: a toolbox for performing partial volume correction "
+                                            "techniques in positron emission tomography},"
+                                    "journal={Physics in Medicine and Biology},"
+                                    "volume={61},"
+                                    "number={22},"
+                                    "pages={7975},"
+                                    "url={http://stacks.iop.org/0031-9155/61/i=22/a=7975},"
+                                    "doi={http://dx.doi.org/10.1088/0031-9155/61/22/7975},"
+                                    "year={2016},"
+                                    "}"),
+                    'description': 'PETPVC software implementation publication',
+                    'tags': ['implementation'],
+                    }]
 
     def _list_outputs(self):
         outputs = self.output_spec().get()

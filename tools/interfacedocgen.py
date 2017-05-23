@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # emacs: -*- mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vi: set ft=python sts=4 ts=4 sw=4 et:
 """Attempt to generate templates for module reference with Sphinx
@@ -19,8 +20,8 @@ NOTE: this is a modified version of a script originally shipped with the
 PyMVPA project, which we've adapted for NIPY use.  PyMVPA is an MIT-licensed
 project."""
 
-from __future__ import print_function
-from builtins import object
+from __future__ import print_function, unicode_literals
+from builtins import object, open
 
 # Stdlib imports
 import inspect
@@ -123,11 +124,11 @@ class InterfaceHelpWriter(object):
     def _get_object_name(self, line):
         ''' Get second token in line
         >>> docwriter = ApiDocWriter('sphinx')
-        >>> docwriter._get_object_name("  def func():  ")
-        'func'
-        >>> docwriter._get_object_name("  class Klass(object):  ")
+        >>> docwriter._get_object_name("  def func():  ") # doctest: +ALLOW_UNICODE
+        u'func'
+        >>> docwriter._get_object_name("  class Klass(object):  ") # doctest: +ALLOW_UNICODE
         'Klass'
-        >>> docwriter._get_object_name("  class Klass:  ")
+        >>> docwriter._get_object_name("  class Klass:  ") # doctest: +ALLOW_UNICODE
         'Klass'
         '''
         name = line.split()[1].split('(')[0].strip()
@@ -439,6 +440,30 @@ class InterfaceHelpWriter(object):
             if not api_str:
                 continue
             # write out to file
+            mvalues = m.split('.')
+            if len(mvalues) > 3:
+                index_prefix = '.'.join(mvalues[1:3])
+                index_dir = os.path.join(outdir,
+                                         index_prefix)
+                index_file = index_dir + self.rst_extension
+                if not os.path.exists(index_dir):
+                    os.makedirs(index_dir)
+                    header = """.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+{name}
+{underline}
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   {name}/*
+                    """.format(name=index_prefix,
+                               underline='='*len(index_prefix))
+                    with open(index_file, 'wt') as fp:
+                        fp.write(header)
+                m = os.path.join(index_prefix,
+                                 '.'.join(mvalues[3:]))
             outfile = os.path.join(outdir,
                                    m + self.rst_extension)
             fileobj = open(outfile, 'wt')
