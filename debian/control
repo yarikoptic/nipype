@@ -4,7 +4,11 @@ Priority: optional
 Maintainer: NeuroDebian Team <team@neuro.debian.net>
 Uploaders: Yaroslav Halchenko <debian@onerussian.com>, Michael Hanke <michael.hanke@gmail.com>
 Build-Depends: cdbs, debhelper (>= 7), python (>= 2.6), python-setuptools (>= 0.6),
-               python-sphinx (>= 0.6), python-nose, python-simplejson, python-traits (>= 4.0) | python-traits4,
+               python-sphinx (>= 0.6), 
+               python-pytest,
+               python-pydotplus,
+               python-click,
+               python-simplejson, python-traits (>= 4.0) | python-traits4,
                python-scipy, python-matplotlib, python-sympy,
                python-nibabel (>= 1.0.0~), python-nitime, python-nipy (>= 0.1.2+20101206-1~),
                python-mock,
@@ -27,6 +31,7 @@ Package: python-nipype
 Section: python
 Architecture: all
 Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends},
+         python-click,
          python-scipy,
          python-simplejson,
          python-traits (>= 4.0) | python-traits4,
@@ -37,8 +42,8 @@ Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends},
          python-future,
          python-prov,
          python-psutil,
-Recommends: ipython, python-nose, graphviz, python-xvfbwrapper, mayavi2,
-            python-mock,
+Recommends: ipython, python-pytest, graphviz, python-xvfbwrapper, mayavi2,
+            python-mock, python-pydotplus,
 Suggests: fsl, afni, python-nipy, slicer, matlab-spm8,
           python-pyxnat, mne-python, elastix, ants,
 Provides: ${python:Provides}

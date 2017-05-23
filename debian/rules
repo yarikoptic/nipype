@@ -37,8 +37,7 @@ install/python-nipype::
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	export PYTHONPATH=`/bin/ls -d $(DEB_DESTDIR)/usr/lib/python$(cdbs_python_current_version)/*-packages`$(IPYTHONPATH); \
 	cd build && \
-         MPLCONFIGDIR=$(CURDIR)/build \
-	  nosetests -v nipype -e '(test_spm_path|test_mesh_ops)'
+         MPLCONFIGDIR=$(CURDIR)/build LC_ALL=C.UTF-8 py.test -v --doctest-modules ../nipype
     # test_mesh_ops needs X for bloody tvtk.api, and then fails anyways with current mayavi2/tvtk:
     # https://github.com/nipy/nipype/issues/1218, so skipping it for now
 endif
