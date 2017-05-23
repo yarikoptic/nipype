@@ -4,6 +4,8 @@ nipype (0.13.1-1) experimental; urgency=medium
   * Dropped debian/patches/changeset_bf-install-use-resources.diff
     since upstream migrated to setuptools and issue with permissions
     should be resolved (see https://github.com/nipy/nipype/pull/1565)
+  * debian/rules 
+    - set LC_ALL=C.UTF-8 while building docs
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Tue, 23 May 2017 10:03:04 -0400
 

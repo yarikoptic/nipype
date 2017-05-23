@@ -27,7 +27,7 @@ doc: doc-stamp
 doc-stamp: build/python-nipype
 ifeq (,$(filter nodoc,$(DEB_BUILD_OPTIONS)))
 	: # TODO: We need to set matplotlib backend to Agg before building...
-	export PYTHONPATH=$$PWD$(IPYTHONPATH) MPLCONFIGDIR=$(CURDIR)/build; cd doc; $(MAKE) html
+	export PYTHONPATH=$$PWD$(IPYTHONPATH) MPLCONFIGDIR=$(CURDIR)/build; cd doc; LC_ALL=C.UTF-8 $(MAKE) html
 	touch $@
 endif
 
