@@ -1,6 +1,6 @@
 --- a/tools/interfacedocgen.py
 +++ b/tools/interfacedocgen.py
-@@ -289,7 +289,11 @@ class InterfaceHelpWriter(object):
+@@ -290,7 +290,11 @@ class InterfaceHelpWriter(object):
          # ad += '\n' + 'Classes' + '\n' + \
          #    self.rst_section_levels[2] * 7 + '\n'
          for c in classes:

@@ -1,3 +1,12 @@
+nipype (0.13.1-1) experimental; urgency=medium
+
+  * Fresh upstream release
+  * Dropped debian/patches/changeset_bf-install-use-resources.diff
+    since upstream migrated to setuptools and issue with permissions
+    should be resolved (see https://github.com/nipy/nipype/pull/1565)
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Tue, 23 May 2017 10:03:04 -0400
+
 nipype (0.12.1+git4-gbc3a0b5-1) unstable; urgency=medium
 
   * New upstream snapshot from 0.12.0-53-g356319b -- there were a number of
