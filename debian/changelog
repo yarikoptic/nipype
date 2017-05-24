@@ -2,6 +2,8 @@ nipype (0.13.1-1) experimental; urgency=medium
 
   * Fresh upstream release
     - switched to use py.test instead of nosetests
+  * debian/control
+    - added python-click and python-configparser
   * Dropped debian/patches/changeset_bf-install-use-resources.diff
     since upstream migrated to setuptools and issue with permissions
     should be resolved (see https://github.com/nipy/nipype/pull/1565)
