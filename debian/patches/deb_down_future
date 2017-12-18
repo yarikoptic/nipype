@@ -8,14 +8,14 @@ Last-Update: 2017-05-23
 
 --- a/requirements.txt
 +++ b/requirements.txt
-@@ -4,7 +4,7 @@ networkx>=1.7
+@@ -4,7 +4,7 @@ networkx>=1.9
  traits>=4.6
  python-dateutil>=1.5
  nibabel>=2.1.0
 -future>=0.16.0
 +future>=0.15.2
  simplejson>=3.8.0
- prov>=1.5.0
+ prov==1.5.0
  click>=6.6.0
 --- a/nipype/info.py
 +++ b/nipype/info.py
@@ -26,5 +26,5 @@ Last-Update: 2017-05-23
 -FUTURE_MIN_VERSION = '0.16.0'
 +FUTURE_MIN_VERSION = '0.15.2'
  SIMPLEJSON_MIN_VERSION = '3.8.0'
- PROV_MIN_VERSION = '1.5.0'
+ PROV_VERSION = '1.5.0'
  CLICK_MIN_VERSION = '6.6.0'

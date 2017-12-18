@@ -1,3 +1,11 @@
+nipype (0.14.0-1) unstable; urgency=medium
+
+  * Fresh upstream release
+    - dropped debian/patches/up*
+    - should not FTBFS any longer (Closes: #848777)
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 18 Dec 2017 09:49:54 -0500
+
 nipype (0.13.1-1) experimental; urgency=medium
 
   * Fresh upstream release
