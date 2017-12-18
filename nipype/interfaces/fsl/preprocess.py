@@ -127,7 +127,7 @@ class BET(FSLCommand):
     >>> btr.inputs.in_file = 'structural.nii'
     >>> btr.inputs.frac = 0.7
     >>> btr.inputs.out_file = 'brain_anat.nii'
-    >>> btr.cmdline  # doctest: +ALLOW_UNICODE
+    >>> btr.cmdline
     'bet structural.nii brain_anat.nii -f 0.70'
     >>> res = btr.run() # doctest: +SKIP
 
@@ -298,7 +298,7 @@ class FAST(FSLCommand):
     >>> fastr = fsl.FAST()
     >>> fastr.inputs.in_files = 'structural.nii'
     >>> fastr.inputs.out_basename = 'fast_'
-    >>> fastr.cmdline  # doctest: +ALLOW_UNICODE
+    >>> fastr.cmdline
     'fast -o fast_ -S 1 structural.nii'
     >>> out = fastr.run()  # doctest: +SKIP
 
@@ -541,7 +541,7 @@ class FLIRT(FSLCommand):
     >>> flt.inputs.in_file = 'structural.nii'
     >>> flt.inputs.reference = 'mni.nii'
     >>> flt.inputs.output_type = "NIFTI_GZ"
-    >>> flt.cmdline # doctest: +ELLIPSIS +ALLOW_UNICODE
+    >>> flt.cmdline # doctest: +ELLIPSIS
     'flirt -in structural.nii -ref mni.nii -out structural_flirt.nii.gz -omat structural_flirt.mat -bins 640 -searchcost mutualinfo'
     >>> res = flt.run() #doctest: +SKIP
 
@@ -549,26 +549,29 @@ class FLIRT(FSLCommand):
     _cmd = 'flirt'
     input_spec = FLIRTInputSpec
     output_spec = FLIRTOutputSpec
+    _log_written = False
 
     def aggregate_outputs(self, runtime=None, needed_outputs=None):
         outputs = super(FLIRT, self).aggregate_outputs(
             runtime=runtime, needed_outputs=needed_outputs)
-        if isdefined(self.inputs.save_log) and self.inputs.save_log:
+        if self.inputs.save_log and not self._log_written:
             with open(outputs.out_log, "a") as text_file:
                 text_file.write(runtime.stdout + '\n')
+            self._log_written = True
         return outputs
 
     def _parse_inputs(self, skip=None):
-        skip = []
-        if isdefined(self.inputs.save_log) and self.inputs.save_log:
-            if not isdefined(self.inputs.verbose) or self.inputs.verbose == 0:
-                self.inputs.verbose = 1
-        if isdefined(self.inputs.apply_xfm) and self.inputs.apply_xfm:
-            if not self.inputs.in_matrix_file and not self.inputs.uses_qform:
-                raise RuntimeError('Argument apply_xfm requires in_matrix_file '
-                                   'or uses_qform arguments to run')
+        if skip is None:
+            skip = []
+        if self.inputs.save_log and not self.inputs.verbose:
+            self.inputs.verbose = 1
+        if self.inputs.apply_xfm and not (self.inputs.in_matrix_file or
+                                          self.inputs.uses_qform):
+            raise RuntimeError('Argument apply_xfm requires in_matrix_file or '
+                               'uses_qform arguments to run')
         skip.append('save_log')
         return super(FLIRT, self)._parse_inputs(skip=skip)
+
 
 class ApplyXFMInputSpec(FLIRTInputSpec):
     apply_xfm = traits.Bool(
@@ -671,7 +674,7 @@ class MCFLIRT(FSLCommand):
     >>> mcflt.inputs.in_file = 'functional.nii'
     >>> mcflt.inputs.cost = 'mutualinfo'
     >>> mcflt.inputs.out_file = 'moco.nii'
-    >>> mcflt.cmdline # doctest: +ALLOW_UNICODE
+    >>> mcflt.cmdline
     'mcflirt -in functional.nii -cost mutualinfo -out moco.nii'
     >>> res = mcflt.run()  # doctest: +SKIP
 
@@ -874,7 +877,7 @@ class FNIRTInputSpec(FSLCommandInputSpec):
         desc=('If true, ref image is used to calculate derivatives. '
               'Default false'))
     intensity_mapping_model = traits.Enum(
-        'none', 'global_linear', 'global_non_linear'
+        'none', 'global_linear', 'global_non_linear',
         'local_linear', 'global_non_linear_with_bias',
         'local_non_linear', argstr='--intmod=%s',
         desc='Model for intensity-mapping')
@@ -1394,7 +1397,7 @@ class FUGUE(FSLCommand):
     >>> fugue.inputs.shift_in_file = 'vsm.nii'  # Previously computed with fugue as well
     >>> fugue.inputs.unwarp_direction = 'y'
     >>> fugue.inputs.output_type = "NIFTI_GZ"
-    >>> fugue.cmdline # doctest: +ELLIPSIS +ALLOW_UNICODE
+    >>> fugue.cmdline # doctest: +ELLIPSIS
     'fugue --in=epi.nii --mask=epi_mask.nii --loadshift=vsm.nii --unwarpdir=y --unwarp=epi_unwarped.nii.gz'
     >>> fugue.run() #doctest: +SKIP
 
@@ -1409,7 +1412,7 @@ class FUGUE(FSLCommand):
     >>> fugue.inputs.shift_in_file = 'vsm.nii'  # Previously computed with fugue as well
     >>> fugue.inputs.unwarp_direction = 'y'
     >>> fugue.inputs.output_type = "NIFTI_GZ"
-    >>> fugue.cmdline # doctest: +ELLIPSIS +ALLOW_UNICODE
+    >>> fugue.cmdline # doctest: +ELLIPSIS
     'fugue --in=epi.nii --mask=epi_mask.nii --loadshift=vsm.nii --unwarpdir=y --warp=epi_warped.nii.gz'
     >>> fugue.run() #doctest: +SKIP
 
@@ -1424,7 +1427,7 @@ class FUGUE(FSLCommand):
     >>> fugue.inputs.unwarp_direction = 'y'
     >>> fugue.inputs.save_shift = True
     >>> fugue.inputs.output_type = "NIFTI_GZ"
-    >>> fugue.cmdline # doctest: +ELLIPSIS +ALLOW_UNICODE
+    >>> fugue.cmdline # doctest: +ELLIPSIS
     'fugue --dwelltoasym=0.9390243902 --mask=epi_mask.nii --phasemap=epi_phasediff.nii --saveshift=epi_phasediff_vsm.nii.gz --unwarpdir=y'
     >>> fugue.run() #doctest: +SKIP
 

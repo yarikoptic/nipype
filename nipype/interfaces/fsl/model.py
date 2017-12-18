@@ -934,7 +934,7 @@ class FLAMEO(FSLCommand):
     >>> flameo.inputs.t_con_file = 'design.con'
     >>> flameo.inputs.mask_file = 'mask.nii'
     >>> flameo.inputs.run_mode = 'fe'
-    >>> flameo.cmdline # doctest: +ALLOW_UNICODE
+    >>> flameo.cmdline
     'flameo --copefile=cope.nii.gz --covsplitfile=cov_split.mat --designfile=design.mat --ld=stats --maskfile=mask.nii --runmode=fe --tcontrastsfile=design.con --varcopefile=varcope.nii.gz'
 
     """
@@ -1601,7 +1601,7 @@ class MELODIC(FSLCommand):
     >>> melodic_setup.inputs.s_des = 'subjectDesign.mat'
     >>> melodic_setup.inputs.s_con = 'subjectDesign.con'
     >>> melodic_setup.inputs.out_dir = 'groupICA.out'
-    >>> melodic_setup.cmdline # doctest: +ALLOW_UNICODE
+    >>> melodic_setup.cmdline
     'melodic -i functional.nii,functional2.nii,functional3.nii -a tica --bgthreshold=10.000000 --mmthresh=0.500000 --nobet -o groupICA.out --Ostats --Scon=subjectDesign.con --Sdes=subjectDesign.mat --Tcon=timeDesign.con --Tdes=timeDesign.mat --tr=1.500000'
     >>> melodic_setup.run() # doctest: +SKIP
 
@@ -1657,7 +1657,7 @@ class SmoothEstimate(FSLCommand):
     >>> est = SmoothEstimate()
     >>> est.inputs.zstat_file = 'zstat1.nii.gz'
     >>> est.inputs.mask_file = 'mask.nii'
-    >>> est.cmdline # doctest: +ALLOW_UNICODE
+    >>> est.cmdline
     'smoothest --mask=mask.nii --zstat=zstat1.nii.gz'
 
     """
@@ -1773,7 +1773,7 @@ class Cluster(FSLCommand):
     >>> cl.inputs.in_file = 'zstat1.nii.gz'
     >>> cl.inputs.out_localmax_txt_file = 'stats.txt'
     >>> cl.inputs.use_mm = True
-    >>> cl.cmdline # doctest: +ALLOW_UNICODE
+    >>> cl.cmdline
     'cluster --in=zstat1.nii.gz --olmax=stats.txt --thresh=2.3000000000 --mm'
 
     """
@@ -1813,6 +1813,72 @@ class Cluster(FSLCommand):
                 fname = value
             return spec.argstr % fname
         return super(Cluster, self)._format_arg(name, spec, value)
+
+
+class DualRegressionInputSpec(FSLCommandInputSpec):
+    in_files = InputMultiPath(File(exists=True), argstr="%s", mandatory=True,
+        position=-1, sep=" ",
+        desc="List all subjects' preprocessed, standard-space 4D datasets",)
+    group_IC_maps_4D = File(exists=True, argstr="%s", mandatory=True, position=1,
+        desc="4D image containing spatial IC maps (melodic_IC) from the "
+        "whole-group ICA analysis")
+    des_norm = traits.Bool(True, argstr="%i",  position=2, usedefault=True,
+        desc="Whether to variance-normalise the timecourses used as the "
+        "stage-2 regressors; True is default and recommended")
+    one_sample_group_mean = traits.Bool(argstr="-1", position=3,
+        desc="perform 1-sample group-mean test instead of generic "
+        "permutation test")
+    design_file = File(exists=True, argstr="%s", position=3,
+        desc="Design matrix for final cross-subject modelling with "
+        "randomise")
+    con_file = File(exists=True, argstr="%s", position=4,
+        desc="Design contrasts for final cross-subject modelling with "
+        "randomise")
+    n_perm = traits.Int(argstr="%i", mandatory=True, position=5,
+        desc="Number of permutations for randomise; set to 1 for just raw "
+        "tstat output, set to 0 to not run randomise at all.")
+    out_dir = Directory("output", argstr="%s", usedefault=True, position=6,
+        desc="This directory will be created to hold all output and logfiles",
+        genfile=True)
+
+
+class DualRegressionOutputSpec(TraitedSpec):
+    out_dir = Directory(exists=True)
+
+
+class DualRegression(FSLCommand):
+    """Wrapper Script for Dual Regression Workflow
+
+    Examples
+    --------
+
+    >>> dual_regression = DualRegression()
+    >>> dual_regression.inputs.in_files = ["functional.nii", "functional2.nii", "functional3.nii"]
+    >>> dual_regression.inputs.group_IC_maps_4D = "allFA.nii"
+    >>> dual_regression.inputs.des_norm = False
+    >>> dual_regression.inputs.one_sample_group_mean = True
+    >>> dual_regression.inputs.n_perm = 10
+    >>> dual_regression.inputs.out_dir = "my_output_directory"
+    >>> dual_regression.cmdline
+    u'dual_regression allFA.nii 0 -1 10 my_output_directory functional.nii functional2.nii functional3.nii'
+    >>> dual_regression.run() # doctest: +SKIP
+
+    """
+    input_spec = DualRegressionInputSpec
+    output_spec = DualRegressionOutputSpec
+    _cmd = 'dual_regression'
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        if isdefined(self.inputs.out_dir):
+            outputs['out_dir'] = os.path.abspath(self.inputs.out_dir)
+        else:
+            outputs['out_dir'] = self._gen_filename("out_dir")
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == "out_dir":
+            return os.getcwd()
 
 
 class RandomiseInputSpec(FSLCommandInputSpec):
@@ -1911,7 +1977,7 @@ class Randomise(FSLCommand):
     -------
     >>> import nipype.interfaces.fsl as fsl
     >>> rand = fsl.Randomise(in_file='allFA.nii', mask = 'mask.nii', tcon='design.con', design_mat='design.mat')
-    >>> rand.cmdline # doctest: +ALLOW_UNICODE
+    >>> rand.cmdline
     'randomise -i allFA.nii -o "tbss_" -d design.mat -t design.con -m mask.nii'
 
     """
@@ -2056,7 +2122,7 @@ class GLM(FSLCommand):
     -------
     >>> import nipype.interfaces.fsl as fsl
     >>> glm = fsl.GLM(in_file='functional.nii', design='maps.nii', output_type='NIFTI')
-    >>> glm.cmdline # doctest: +ALLOW_UNICODE
+    >>> glm.cmdline
     'fsl_glm -i functional.nii -d maps.nii -o functional_glm.nii'
 
     """

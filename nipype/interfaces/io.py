@@ -40,6 +40,7 @@ from ..utils.misc import human_order_sorted, str2bool
 from .base import (
     TraitedSpec, traits, Str, File, Directory, BaseInterface, InputMultiPath,
     isdefined, OutputMultiPath, DynamicTraitedSpec, Undefined, BaseInterfaceInputSpec)
+from .bids_utils import BIDSDataGrabber
 
 try:
     import pyxnat
@@ -71,7 +72,7 @@ def copytree(src, dst, use_hardlink=False):
     try:
         os.makedirs(dst)
     except OSError as why:
-        if 'File exists' in why:
+        if 'File exists' in why.strerror:
             pass
         else:
             raise why
@@ -350,17 +351,17 @@ class DataSink(IOBase):
                 oldpathstr = pathstr
                 pathstr = pathstr.replace(key, val)
                 if pathstr != oldpathstr:
-                    iflogger.debug('sub.str: %s -> %s using %r -> %r'
-                                   % (oldpathstr, pathstr, key, val))
+                    iflogger.debug('sub.str: %s -> %s using %r -> %r',
+                                   oldpathstr, pathstr, key, val)
         if isdefined(self.inputs.regexp_substitutions):
             for key, val in self.inputs.regexp_substitutions:
                 oldpathstr = pathstr
                 pathstr, _ = re.subn(key, val, pathstr)
                 if pathstr != oldpathstr:
-                    iflogger.debug('sub.regexp: %s -> %s using %r -> %r'
-                                   % (oldpathstr, pathstr, key, val))
+                    iflogger.debug('sub.regexp: %s -> %s using %r -> %r',
+                                   oldpathstr, pathstr, key, val)
         if pathstr_ != pathstr:
-            iflogger.info('sub: %s -> %s' % (pathstr_, pathstr))
+            iflogger.info('sub: %s -> %s', pathstr_, pathstr)
         return pathstr
 
     # Check for s3 in base directory
@@ -513,8 +514,8 @@ class DataSink(IOBase):
         # Try and get AWS credentials if a creds_path is specified
         if aws_access_key_id and aws_secret_access_key:
             # Init connection
-            iflogger.info('Connecting to S3 bucket: %s with credentials...'\
-                          % bucket_name)
+            iflogger.info('Connecting to S3 bucket: %s with credentials...',
+                          bucket_name)
             # Use individual session for each instance of DataSink
             # Better when datasinks are being used in multi-threading, see:
             # http://boto3.readthedocs.org/en/latest/guide/resources.html#multithreading
@@ -524,8 +525,7 @@ class DataSink(IOBase):
 
         # Otherwise, connect anonymously
         else:
-            iflogger.info('Connecting to AWS: %s anonymously...'\
-                          % bucket_name)
+            iflogger.info('Connecting to AWS: %s anonymously...', bucket_name)
             session = boto3.session.Session()
             s3_resource = session.resource('s3', use_ssl=True)
             s3_resource.meta.client.meta.events.register('choose-signer.s3.*',
@@ -610,7 +610,7 @@ class DataSink(IOBase):
                 src_md5 = hashlib.md5(src_read).hexdigest()
                 # Move to next loop iteration
                 if dst_md5 == src_md5:
-                    iflogger.info('File %s already exists on S3, skipping...' % dst_f)
+                    iflogger.info('File %s already exists on S3, skipping...', dst_f)
                     continue
                 else:
                     iflogger.info('Overwriting previous S3 file...')
@@ -619,8 +619,8 @@ class DataSink(IOBase):
                 iflogger.info('New file to S3')
 
             # Copy file up to S3 (either encrypted or not)
-            iflogger.info('Uploading %s to S3 bucket, %s, as %s...'\
-                          % (src_f, bucket.name, dst_f))
+            iflogger.info('Uploading %s to S3 bucket, %s, as %s...', src_f,
+                          bucket.name, dst_f)
             if self.inputs.encrypt_bucket_keys:
                 extra_args = {'ServerSideEncryption' : 'AES256'}
             else:
@@ -670,7 +670,7 @@ class DataSink(IOBase):
                         outdir = local_out_exception
                     # Log local copying directory
                     iflogger.info('Access to S3 failed! Storing outputs locally at: '\
-                                  '%s\nError: %s' %(outdir, exc))
+                                  '%s\nError: %s', outdir, exc)
         else:
             s3dir = '<N/A>'
 
@@ -687,7 +687,7 @@ class DataSink(IOBase):
                 try:
                     os.makedirs(outdir)
                 except OSError as inst:
-                    if 'File exists' in inst:
+                    if 'File exists' in inst.strerror:
                         pass
                     else:
                         raise(inst)
@@ -696,7 +696,7 @@ class DataSink(IOBase):
         for key, files in list(self.inputs._outputs.items()):
             if not isdefined(files):
                 continue
-            iflogger.debug("key: %s files: %s" % (key, str(files)))
+            iflogger.debug("key: %s files: %s", key, str(files))
             files = filename_to_list(files)
             tempoutdir = outdir
             if s3_flag:
@@ -738,22 +738,22 @@ class DataSink(IOBase):
                         try:
                             os.makedirs(path)
                         except OSError as inst:
-                            if 'File exists' in inst:
+                            if 'File exists' in inst.strerror:
                                 pass
                             else:
                                 raise(inst)
                     # If src is a file, copy it to dst
                     if os.path.isfile(src):
-                        iflogger.debug('copyfile: %s %s' % (src, dst))
+                        iflogger.debug('copyfile: %s %s', src, dst)
                         copyfile(src, dst, copy=True, hashmethod='content',
                                  use_hardlink=use_hardlink)
                         out_files.append(dst)
                     # If src is a directory, copy entire contents to dst dir
                     elif os.path.isdir(src):
                         if os.path.exists(dst) and self.inputs.remove_dest_dir:
-                            iflogger.debug('removing: %s' % dst)
+                            iflogger.debug('removing: %s', dst)
                             shutil.rmtree(dst)
-                        iflogger.debug('copydir: %s %s' % (src, dst))
+                        iflogger.debug('copydir: %s %s', src, dst)
                         copytree(src, dst)
                         out_files.append(dst)
 
@@ -869,7 +869,7 @@ class S3DataGrabber(IOBase):
         # get list of all files in s3 bucket
         conn = boto.connect_s3(anon=self.inputs.anon)
         bkt = conn.get_bucket(self.inputs.bucket)
-        bkt_files = list(k.key for k in bkt.list())
+        bkt_files = list(k.key for k in bkt.list(prefix=self.inputs.bucket_path))
 
         # keys are outfields, args are template args for the outfield
         for key, args in list(self.inputs.template_args.items()):
@@ -948,12 +948,11 @@ class S3DataGrabber(IOBase):
         # We must convert to the local location specified
         # and download the files.
         for key,val in outputs.items():
-            #This will basically be either list-like or string-like:
-            #if it has the __iter__ attribute, it's list-like (list,
-            #tuple, numpy array) and we iterate through each of its
-            #values. If it doesn't, it's string-like (string,
-            #unicode), and we convert that value directly.
-            if hasattr(val,'__iter__'):
+            # This will basically be either list-like or string-like:
+            # if it's an instance of a list, we'll iterate through it.
+            # If it isn't, it's string-like (string, unicode), we
+            # convert that value directly.
+            if isinstance(val, (list, tuple, set)):
                 for i,path in enumerate(val):
                     outputs[key][i] = self.s3tolocal(path, bkt)
             else:
@@ -1188,15 +1187,18 @@ class SelectFilesInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     base_directory = Directory(exists=True,
                                desc="Root path common to templates.")
     sort_filelist = traits.Bool(True, usedefault=True,
-                                desc="When matching mutliple files, return them in sorted order.")
+                                desc="When matching mutliple files, return them"
+                                " in sorted order.")
     raise_on_empty = traits.Bool(True, usedefault=True,
-                                 desc="Raise an exception if a template pattern matches no files.")
+                                desc="Raise an exception if a template pattern "
+                                "matches no files.")
     force_lists = traits.Either(traits.Bool(), traits.List(Str()),
                                 default=False, usedefault=True,
-                                desc=("Whether to return outputs as a list even when only one file "
-                                      "matches the template. Either a boolean that applies to all "
-                                      "output fields or a list of output field names to coerce to "
-                                      " a list"))
+                                desc=("Whether to return outputs as a list even"
+                                " when only one file matches the template. "
+                                "Either a boolean that applies to all output "
+                                "fields or a list of output field names to "
+                                "coerce to a list"))
 
 
 class SelectFiles(IOBase):
@@ -1219,7 +1221,7 @@ class SelectFiles(IOBase):
     ...            "epi": "{subject_id}/func/f[0, 1].nii"}
     >>> dg = Node(SelectFiles(templates), "selectfiles")
     >>> dg.inputs.subject_id = "subj1"
-    >>> pprint.pprint(dg.outputs.get())  # doctest: +NORMALIZE_WHITESPACE +ALLOW_UNICODE
+    >>> pprint.pprint(dg.outputs.get())  # doctest:
     {'T1': <undefined>, 'epi': <undefined>}
 
     The same thing with dynamic grabbing of specific files:
@@ -1256,8 +1258,10 @@ class SelectFiles(IOBase):
         infields = []
         for name, template in list(templates.items()):
             for _, field_name, _, _ in string.Formatter().parse(template):
-                if field_name is not None and field_name not in infields:
-                    infields.append(field_name)
+                if field_name is not None:
+                    field_name = re.match("\w+", field_name).group()
+                    if field_name not in infields:
+                        infields.append(field_name)
 
         self._infields = infields
         self._outfields = list(templates)
@@ -1294,12 +1298,18 @@ class SelectFiles(IOBase):
 
         for field, template in list(self._templates.items()):
 
+            find_dirs = template[-1] == os.sep
+
             # Build the full template path
             if isdefined(self.inputs.base_directory):
                 template = op.abspath(op.join(
                     self.inputs.base_directory, template))
             else:
                 template = op.abspath(template)
+
+            # re-add separator if searching exclusively for directories
+            if find_dirs:
+                template += os.sep
 
             # Fill in the template and glob for files
             filled_template = template.format(**info)
@@ -1613,13 +1623,13 @@ class FreeSurferSource(IOBase):
                 globprefix = self.inputs.hemi + '.'
             else:
                 globprefix = '?h.'
+            if key in ('aseg_stats', 'wmparc_stats'):
+                globprefix = ''
         elif key == 'ribbon':
             if self.inputs.hemi != 'both':
                 globprefix = self.inputs.hemi + '.'
             else:
                 globprefix = '*'
-        elif key in ('aseg_stats', 'wmparc_stats'):
-            globprefix = ''
         keys = filename_to_list(altkey) if altkey else [key]
         globfmt = os.path.join(path, dirval,
                                ''.join((globprefix, '{}', globsuffix)))
@@ -2419,7 +2429,7 @@ class SSHDataGrabber(DataGrabber):
                                 try:
                                     sftp.get(os.path.join(filledtemplate_dir, f), f)
                                 except IOError:
-                                    iflogger.info('remote file %s not found' % f)
+                                    iflogger.info('remote file %s not found', f)
             if any([val is None for val in outputs[key]]):
                 outputs[key] = []
             if len(outputs[key]) == 0:
@@ -2466,18 +2476,28 @@ class JSONFileGrabber(IOBase):
     Example
     -------
 
+    .. testsetup::
+
+    >>> tmp = getfixture('tmpdir')
+    >>> old = tmp.chdir() # changing to a temporary directory
+
+    .. doctest::
+
     >>> import pprint
     >>> from nipype.interfaces.io import JSONFileGrabber
     >>> jsonSource = JSONFileGrabber()
     >>> jsonSource.inputs.defaults = {'param1': 'overrideMe', 'param3': 1.0}
     >>> res = jsonSource.run()
-    >>> pprint.pprint(res.outputs.get()) # doctest: +ALLOW_UNICODE
+    >>> pprint.pprint(res.outputs.get())
     {'param1': 'overrideMe', 'param3': 1.0}
-    >>> jsonSource.inputs.in_file = 'jsongrabber.txt'
+    >>> jsonSource.inputs.in_file = os.path.join(datadir, 'jsongrabber.txt')
     >>> res = jsonSource.run()
-    >>> pprint.pprint(res.outputs.get())  # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS +ALLOW_UNICODE
+    >>> pprint.pprint(res.outputs.get())  # doctest:, +ELLIPSIS
     {'param1': 'exampleStr', 'param2': 4, 'param3': 1.0}
 
+    .. testsetup::
+
+    >>> os.chdir(old.strpath)
 
     """
     input_spec = JSONFileGrabberInputSpec

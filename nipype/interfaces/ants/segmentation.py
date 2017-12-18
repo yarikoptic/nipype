@@ -91,7 +91,7 @@ class Atropos(ANTSCommand):
     >>> at.inputs.posterior_formulation = 'Socrates'
     >>> at.inputs.use_mixture_model_proportions = True
     >>> at.inputs.save_posteriors = True
-    >>> at.cmdline # doctest: +ALLOW_UNICODE
+    >>> at.cmdline
     'Atropos --image-dimensionality 3 --icm [1,1] \
 --initialization PriorProbabilityImages[2,priors/priorProbImages%02d.nii,0.8,1e-07] --intensity-image structural.nii \
 --likelihood-model Gaussian --mask-image mask.nii --mrf [0.2,1x1x1] --convergence [5,1e-06] \
@@ -209,7 +209,7 @@ class LaplacianThickness(ANTSCommand):
     >>> cort_thick.inputs.input_wm = 'white_matter.nii.gz'
     >>> cort_thick.inputs.input_gm = 'gray_matter.nii.gz'
     >>> cort_thick.inputs.output_image = 'output_thickness.nii.gz'
-    >>> cort_thick.cmdline # doctest: +ALLOW_UNICODE
+    >>> cort_thick.cmdline
     'LaplacianThickness white_matter.nii.gz gray_matter.nii.gz output_thickness.nii.gz'
 
     """
@@ -238,9 +238,9 @@ class LaplacianThickness(ANTSCommand):
 
 
 class N4BiasFieldCorrectionInputSpec(ANTSCommandInputSpec):
-    dimension = traits.Enum(3, 2, argstr='-d %d',
+    dimension = traits.Enum(3, 2, 4, argstr='-d %d',
                             usedefault=True,
-                            desc='image dimension (2 or 3)')
+                            desc='image dimension (2, 3 or 4)')
     input_image = File(argstr='--input-image %s', mandatory=True,
                        desc=('image to apply transformation to (generally a '
                              'coregistered functional)'))
@@ -259,6 +259,9 @@ class N4BiasFieldCorrectionInputSpec(ANTSCommandInputSpec):
                                   ' to file.'), xor=['bias_image'])
     bias_image = File(desc='Filename for the estimated bias.',
                       hash_files=False)
+    copy_header = traits.Bool(False, mandatory=True, usedefault=True,
+                              desc='copy headers of the original image into the '
+                                   'output (corrected) file')
 
 
 class N4BiasFieldCorrectionOutputSpec(TraitedSpec):
@@ -291,7 +294,7 @@ class N4BiasFieldCorrection(ANTSCommand):
     >>> n4.inputs.bspline_fitting_distance = 300
     >>> n4.inputs.shrink_factor = 3
     >>> n4.inputs.n_iterations = [50,50,30,20]
-    >>> n4.cmdline # doctest: +ALLOW_UNICODE
+    >>> n4.cmdline
     'N4BiasFieldCorrection --bspline-fitting [ 300 ] \
 -d 3 --input-image structural.nii \
 --convergence [ 50x50x30x20 ] --output structural_corrected.nii \
@@ -299,7 +302,7 @@ class N4BiasFieldCorrection(ANTSCommand):
 
     >>> n4_2 = copy.deepcopy(n4)
     >>> n4_2.inputs.convergence_threshold = 1e-6
-    >>> n4_2.cmdline # doctest: +ALLOW_UNICODE
+    >>> n4_2.cmdline
     'N4BiasFieldCorrection --bspline-fitting [ 300 ] \
 -d 3 --input-image structural.nii \
 --convergence [ 50x50x30x20, 1e-06 ] --output structural_corrected.nii \
@@ -307,7 +310,7 @@ class N4BiasFieldCorrection(ANTSCommand):
 
     >>> n4_3 = copy.deepcopy(n4_2)
     >>> n4_3.inputs.bspline_order = 5
-    >>> n4_3.cmdline # doctest: +ALLOW_UNICODE
+    >>> n4_3.cmdline
     'N4BiasFieldCorrection --bspline-fitting [ 300, 5 ] \
 -d 3 --input-image structural.nii \
 --convergence [ 50x50x30x20, 1e-06 ] --output structural_corrected.nii \
@@ -317,7 +320,7 @@ class N4BiasFieldCorrection(ANTSCommand):
     >>> n4_4.inputs.input_image = 'structural.nii'
     >>> n4_4.inputs.save_bias = True
     >>> n4_4.inputs.dimension = 3
-    >>> n4_4.cmdline # doctest: +ALLOW_UNICODE
+    >>> n4_4.cmdline
     'N4BiasFieldCorrection -d 3 --input-image structural.nii \
 --output [ structural_corrected.nii, structural_bias.nii ]'
     """
@@ -383,6 +386,27 @@ class N4BiasFieldCorrection(ANTSCommand):
             outputs['bias_image'] = os.path.abspath(
                 self._gen_filename('bias_image'))
         return outputs
+
+    def _run_interface(self, runtime, correct_return_codes=(0,)):
+        runtime = super(N4BiasFieldCorrection, self)._run_interface(
+            runtime, correct_return_codes)
+
+        if self.inputs.copy_header and runtime.returncode in correct_return_codes:
+            self._copy_header(self._gen_filename('output_image'))
+            if self.inputs.save_bias or isdefined(self.inputs.bias_image):
+                self._copy_header(self._gen_filename('bias_image'))
+
+        return runtime
+
+    def _copy_header(self, fname):
+        """Copy header from input image to an output image"""
+        import nibabel as nb
+        in_img = nb.load(self.inputs.input_image)
+        out_img = nb.load(fname, mmap=False)
+        new_img = out_img.__class__(out_img.get_data(), in_img.affine,
+                                    in_img.header)
+        new_img.set_data_dtype(out_img.get_data_dtype())
+        new_img.to_filename(fname)
 
 
 class CorticalThicknessInputSpec(ANTSCommandInputSpec):
@@ -506,7 +530,7 @@ class CorticalThickness(ANTSCommand):
     ...                                                 'BrainSegmentationPrior03.nii.gz',
     ...                                                 'BrainSegmentationPrior04.nii.gz']
     >>> corticalthickness.inputs.t1_registration_template = 'brain_study_template.nii.gz'
-    >>> corticalthickness.cmdline # doctest: +ALLOW_UNICODE
+    >>> corticalthickness.cmdline
     'antsCorticalThickness.sh -a T1.nii.gz -m ProbabilityMaskOfStudyTemplate.nii.gz -e study_template.nii.gz -d 3 \
 -s nii.gz -o antsCT_ -p nipype_priors/BrainSegmentationPrior%02d.nii.gz -t brain_study_template.nii.gz'
 
@@ -685,7 +709,7 @@ class BrainExtraction(ANTSCommand):
     >>> brainextraction.inputs.anatomical_image ='T1.nii.gz'
     >>> brainextraction.inputs.brain_template = 'study_template.nii.gz'
     >>> brainextraction.inputs.brain_probability_mask ='ProbabilityMaskOfStudyTemplate.nii.gz'
-    >>> brainextraction.cmdline # doctest: +ALLOW_UNICODE
+    >>> brainextraction.cmdline
     'antsBrainExtraction.sh -a T1.nii.gz -m ProbabilityMaskOfStudyTemplate.nii.gz -e study_template.nii.gz -d 3 \
 -s nii.gz -o highres001_'
     """
@@ -696,17 +720,19 @@ class BrainExtraction(ANTSCommand):
     def _run_interface(self, runtime, correct_return_codes=(0,)):
         # antsBrainExtraction.sh requires ANTSPATH to be defined
         out_environ = self._get_environ()
-        if out_environ.get('ANTSPATH') is None:
-            runtime.environ.update(out_environ)
-            executable_name = self.cmd.split()[0]
-            exist_val, cmd_path = _exists_in_path(executable_name, runtime.environ)
-            if not exist_val:
-                raise IOError("command '%s' could not be found on host %s" %
-                              (self.cmd.split()[0], runtime.hostname))
+        ants_path = out_environ.get('ANTSPATH', None) or os.getenv('ANTSPATH', None)
+        if ants_path is None:
+            # Check for antsRegistration, which is under bin/ (the $ANTSPATH) instead of
+            # checking for antsBrainExtraction.sh which is under script/
+            _, cmd_path = _exists_in_path('antsRegistration', runtime.environ)
+            if not cmd_path:
+                raise RuntimeError(
+                    'The environment variable $ANTSPATH is not defined in host "%s", '
+                    'and Nipype could not determine it automatically.' % runtime.hostname)
+            ants_path = os.path.dirname(cmd_path)
 
-            # Set the environment variable if found
-            runtime.environ.update({'ANTSPATH': os.path.dirname(cmd_path)})
-
+        self.inputs.environ.update({'ANTSPATH': ants_path})
+        runtime.environ.update({'ANTSPATH': ants_path})
         runtime = super(BrainExtraction, self)._run_interface(runtime)
 
         # Still, double-check if it didn't found N4
@@ -716,8 +742,8 @@ class BrainExtraction(ANTSCommand):
                     tool = line.strip().replace('we cant find the', '').split(' ')[0]
                     break
 
-            errmsg = ('antsBrainExtraction.sh requires %s the environment variable '
-                      'ANTSPATH to be defined' % tool)
+            errmsg = ('antsBrainExtraction.sh requires "%s" to be found in $ANTSPATH '
+                      '($ANTSPATH="%s").') % (tool, ants_path)
             if runtime.stderr is None:
                 runtime.stderr = errmsg
             else:
@@ -876,7 +902,7 @@ class JointFusion(ANTSCommand):
     ...                                  'segmentation1.nii.gz',
     ...                                  'segmentation1.nii.gz']
     >>> at.inputs.target_image = 'T1.nii'
-    >>> at.cmdline # doctest: +ALLOW_UNICODE
+    >>> at.cmdline
     'jointfusion 3 1 -m Joint[0.1,2] -tg T1.nii -g im1.nii -g im2.nii -g im3.nii -l segmentation0.nii.gz \
 -l segmentation1.nii.gz -l segmentation1.nii.gz fusion_labelimage_output.nii'
 
@@ -885,7 +911,7 @@ class JointFusion(ANTSCommand):
     >>> at.inputs.beta = 1
     >>> at.inputs.patch_radius = [3,2,1]
     >>> at.inputs.search_radius = [1,2,3]
-    >>> at.cmdline # doctest: +ALLOW_UNICODE
+    >>> at.cmdline
     'jointfusion 3 1 -m Joint[0.5,1] -rp 3x2x1 -rs 1x2x3 -tg T1.nii -g im1.nii -g im2.nii -g im3.nii \
 -l segmentation0.nii.gz -l segmentation1.nii.gz -l segmentation1.nii.gz fusion_labelimage_output.nii'
     """
@@ -962,20 +988,20 @@ class DenoiseImage(ANTSCommand):
     >>> denoise = DenoiseImage()
     >>> denoise.inputs.dimension = 3
     >>> denoise.inputs.input_image = 'im1.nii'
-    >>> denoise.cmdline # doctest: +ALLOW_UNICODE
+    >>> denoise.cmdline
     'DenoiseImage -d 3 -i im1.nii -n Gaussian -o im1_noise_corrected.nii -s 1'
 
     >>> denoise_2 = copy.deepcopy(denoise)
     >>> denoise_2.inputs.output_image = 'output_corrected_image.nii.gz'
     >>> denoise_2.inputs.noise_model = 'Rician'
     >>> denoise_2.inputs.shrink_factor = 2
-    >>> denoise_2.cmdline # doctest: +ALLOW_UNICODE
+    >>> denoise_2.cmdline
     'DenoiseImage -d 3 -i im1.nii -n Rician -o output_corrected_image.nii.gz -s 2'
 
     >>> denoise_3 = DenoiseImage()
     >>> denoise_3.inputs.input_image = 'im1.nii'
     >>> denoise_3.inputs.save_noise = True
-    >>> denoise_3.cmdline # doctest: +ALLOW_UNICODE
+    >>> denoise_3.cmdline
     'DenoiseImage -i im1.nii -n Gaussian -o [ im1_noise_corrected.nii, im1_noise.nii ] -s 1'
     """
     input_spec = DenoiseImageInputSpec
@@ -1079,12 +1105,12 @@ class AntsJointFusion(ANTSCommand):
     >>> antsjointfusion.inputs.atlas_image = [ ['rc1s1.nii','rc1s2.nii'] ]
     >>> antsjointfusion.inputs.atlas_segmentation_image = ['segmentation0.nii.gz']
     >>> antsjointfusion.inputs.target_image = ['im1.nii']
-    >>> antsjointfusion.cmdline # doctest: +ALLOW_UNICODE
+    >>> antsjointfusion.cmdline
     "antsJointFusion -a 0.1 -g ['rc1s1.nii', 'rc1s2.nii'] -l segmentation0.nii.gz \
 -b 2.0 -o ants_fusion_label_output.nii -s 3x3x3 -t ['im1.nii']"
 
     >>> antsjointfusion.inputs.target_image = [ ['im1.nii', 'im2.nii'] ]
-    >>> antsjointfusion.cmdline # doctest: +ALLOW_UNICODE
+    >>> antsjointfusion.cmdline
     "antsJointFusion -a 0.1 -g ['rc1s1.nii', 'rc1s2.nii'] -l segmentation0.nii.gz \
 -b 2.0 -o ants_fusion_label_output.nii -s 3x3x3 -t ['im1.nii', 'im2.nii']"
 
@@ -1092,7 +1118,7 @@ class AntsJointFusion(ANTSCommand):
     ...                                        ['rc2s1.nii','rc2s2.nii'] ]
     >>> antsjointfusion.inputs.atlas_segmentation_image = ['segmentation0.nii.gz',
     ...                                                    'segmentation1.nii.gz']
-    >>> antsjointfusion.cmdline # doctest: +ALLOW_UNICODE
+    >>> antsjointfusion.cmdline
     "antsJointFusion -a 0.1 -g ['rc1s1.nii', 'rc1s2.nii'] -g ['rc2s1.nii', 'rc2s2.nii'] \
 -l segmentation0.nii.gz -l segmentation1.nii.gz -b 2.0 -o ants_fusion_label_output.nii \
 -s 3x3x3 -t ['im1.nii', 'im2.nii']"
@@ -1102,7 +1128,7 @@ class AntsJointFusion(ANTSCommand):
     >>> antsjointfusion.inputs.beta = 1.0
     >>> antsjointfusion.inputs.patch_radius = [3,2,1]
     >>> antsjointfusion.inputs.search_radius = [3]
-    >>> antsjointfusion.cmdline # doctest: +ALLOW_UNICODE
+    >>> antsjointfusion.cmdline
     "antsJointFusion -a 0.5 -g ['rc1s1.nii', 'rc1s2.nii'] -g ['rc2s1.nii', 'rc2s2.nii'] \
 -l segmentation0.nii.gz -l segmentation1.nii.gz -b 1.0 -d 3 -o ants_fusion_label_output.nii \
 -p 3x2x1 -s 3 -t ['im1.nii', 'im2.nii']"
@@ -1111,7 +1137,7 @@ class AntsJointFusion(ANTSCommand):
     >>> antsjointfusion.inputs.verbose = True
     >>> antsjointfusion.inputs.exclusion_image = ['roi01.nii', 'roi02.nii']
     >>> antsjointfusion.inputs.exclusion_image_label = ['1','2']
-    >>> antsjointfusion.cmdline # doctest: +ALLOW_UNICODE
+    >>> antsjointfusion.cmdline
     "antsJointFusion -a 0.5 -g ['rc1s1.nii', 'rc1s2.nii'] -g ['rc2s1.nii', 'rc2s2.nii'] \
 -l segmentation0.nii.gz -l segmentation1.nii.gz -b 1.0 -d 3 -e 1[roi01.nii] -e 2[roi02.nii] \
 -o ants_fusion_label_output.nii -p 3x2x1 -s mask.nii -t ['im1.nii', 'im2.nii'] -v"
@@ -1120,7 +1146,7 @@ class AntsJointFusion(ANTSCommand):
     >>> antsjointfusion.inputs.out_intensity_fusion_name_format = 'ants_joint_fusion_intensity_%d.nii.gz'
     >>> antsjointfusion.inputs.out_label_post_prob_name_format = 'ants_joint_fusion_posterior_%d.nii.gz'
     >>> antsjointfusion.inputs.out_atlas_voting_weight_name_format = 'ants_joint_fusion_voting_weight_%d.nii.gz'
-    >>> antsjointfusion.cmdline # doctest: +ALLOW_UNICODE
+    >>> antsjointfusion.cmdline
     "antsJointFusion -a 0.5 -g ['rc1s1.nii', 'rc1s2.nii'] -g ['rc2s1.nii', 'rc2s2.nii'] \
 -l segmentation0.nii.gz -l segmentation1.nii.gz -b 1.0 -d 3 -e 1[roi01.nii] -e 2[roi02.nii]  \
 -o [ants_fusion_label_output.nii, ants_joint_fusion_intensity_%d.nii.gz, \
@@ -1299,7 +1325,7 @@ class KellyKapowski(ANTSCommand):
     >>> #kk.inputs.use_bspline_smoothing = False
     >>> kk.inputs.number_integration_points = 10
     >>> kk.inputs.thickness_prior_estimate = 10
-    >>> kk.cmdline # doctest: +ALLOW_UNICODE
+    >>> kk.cmdline
     u'KellyKapowski --convergence "[45,0.0,10]" \
 --output "[segmentation0_cortical_thickness.nii.gz,segmentation0_warped_white_matter.nii.gz]" \
 --image-dimensionality 3 --gradient-step 0.025000 --number-of-integration-points 10 \

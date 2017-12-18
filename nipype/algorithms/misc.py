@@ -33,8 +33,8 @@ from ..interfaces.base import (BaseInterface, traits, TraitedSpec, File,
                                InputMultiPath, OutputMultiPath,
                                BaseInterfaceInputSpec, isdefined,
                                DynamicTraitedSpec, Undefined)
-from ..utils.filemanip import fname_presuffix, split_filename
-from nipype.utils import NUMPY_MMAP
+from ..utils.filemanip import fname_presuffix, split_filename, filename_to_list
+from ..utils import NUMPY_MMAP
 
 from . import confounds
 
@@ -362,26 +362,23 @@ class Matlab2CSV(BaseInterface):
                 if isinstance(in_dict[key][0], np.ndarray):
                     saved_variables.append(key)
                 else:
-                    iflogger.info('One of the keys in the input file, {k}, is not a Numpy array'.format(k=key))
+                    iflogger.info('One of the keys in the input file, %s, is '
+                                  'not a Numpy array', key)
 
         if len(saved_variables) > 1:
-            iflogger.info(
-                '{N} variables found:'.format(N=len(saved_variables)))
+            iflogger.info('%i variables found:', len(saved_variables))
             iflogger.info(saved_variables)
             for variable in saved_variables:
-                iflogger.info(
-                    '...Converting {var} - type {ty} - to\
-                    CSV'.format(var=variable, ty=type(in_dict[variable]))
-                )
-                matlab2csv(
-                    in_dict[variable], variable, self.inputs.reshape_matrix)
+                iflogger.info('...Converting %s - type %s - to CSV',
+                              variable, type(in_dict[variable]))
+                matlab2csv(in_dict[variable], variable, self.inputs.reshape_matrix)
         elif len(saved_variables) == 1:
             _, name, _ = split_filename(self.inputs.in_file)
             variable = saved_variables[0]
-            iflogger.info('Single variable found {var}, type {ty}:'.format(
-                var=variable, ty=type(in_dict[variable])))
-            iflogger.info('...Converting {var} to CSV from {f}'.format(
-                var=variable, f=self.inputs.in_file))
+            iflogger.info('Single variable found %s, type %s:', variable,
+                          type(in_dict[variable]))
+            iflogger.info('...Converting %s to CSV from %s', variable,
+                          self.inputs.in_file)
             matlab2csv(in_dict[variable], name, self.inputs.reshape_matrix)
         else:
             iflogger.error('No values in the MATLAB file?!')
@@ -396,8 +393,8 @@ class Matlab2CSV(BaseInterface):
                 if isinstance(in_dict[key][0], np.ndarray):
                     saved_variables.append(key)
                 else:
-                    iflogger.error('One of the keys in the input file, {k}, is\
-                                   not a Numpy array'.format(k=key))
+                    iflogger.error('One of the keys in the input file, %s, is '
+                                   'not a Numpy array', key)
 
         if len(saved_variables) > 1:
             outputs['csv_files'] = replaceext(saved_variables, '.csv')
@@ -555,19 +552,16 @@ class MergeCSVFiles(BaseInterface):
             iflogger.info('Column headings have been provided:')
             headings = self.inputs.column_headings
         else:
-            iflogger.info(
-                'Column headings not provided! Pulled from input filenames:')
+            iflogger.info('Column headings not provided! Pulled from input filenames:')
             headings = remove_identical_paths(self.inputs.in_files)
 
         if isdefined(self.inputs.extra_field):
             if isdefined(self.inputs.extra_column_heading):
                 extraheading = self.inputs.extra_column_heading
-                iflogger.info('Extra column heading provided: {col}'.format(
-                    col=extraheading))
+                iflogger.info('Extra column heading provided: %s', extraheading)
             else:
                 extraheading = 'type'
-                iflogger.info(
-                    'Extra column heading was not defined. Using "type"')
+                iflogger.info('Extra column heading was not defined. Using "type"')
             headings.append(extraheading)
             extraheadingBool = True
 
@@ -575,8 +569,8 @@ class MergeCSVFiles(BaseInterface):
             iflogger.warn('Only one file input!')
 
         if isdefined(self.inputs.row_headings):
-            iflogger.info('Row headings have been provided. Adding "labels"\
-                          column header.')
+            iflogger.info('Row headings have been provided. Adding "labels"'
+                          'column header.')
             prefix = '"{p}","'.format(p=self.inputs.row_heading_title)
             csv_headings = prefix + '","'.join(itertools.chain(
                 headings)) + '"\n'
@@ -1310,7 +1304,7 @@ def merge_rois(in_files, in_idxs, in_ref,
     # to avoid memory errors
     if op.splitext(in_ref)[1] == '.gz':
         try:
-            iflogger.info('uncompress %i' % in_ref)
+            iflogger.info('uncompress %i', in_ref)
             sp.check_call(['gunzip', in_ref], stdout=sp.PIPE, shell=True)
             in_ref = op.splitext(in_ref)[0]
         except:
@@ -1378,6 +1372,94 @@ def merge_rois(in_files, in_idxs, in_ref,
         allim.to_filename(out_file)
 
     return out_file
+
+
+class CalculateMedianInputSpec(BaseInterfaceInputSpec):
+    in_files = InputMultiPath(File(exists=True, mandatory=True,
+      desc="One or more realigned Nifti 4D timeseries"))
+    median_file = traits.Str(desc="Filename prefix to store median images")
+    median_per_file = traits.Bool(False, usedefault=True,
+      desc="Calculate a median file for each Nifti")
+
+class CalculateMedianOutputSpec(TraitedSpec):
+    median_files = OutputMultiPath(File(exists=True),
+      desc="One or more median images")
+
+class CalculateMedian(BaseInterface):
+    """
+    Computes an average of the median across one or more 4D Nifti timeseries
+
+    Example
+    -------
+
+    >>> from nipype.algorithms.misc import CalculateMedian
+    >>> mean = CalculateMedian()
+    >>> mean.inputs.in_files = 'functional.nii'
+    >>> mean.run() # doctest: +SKIP
+
+    """
+    input_spec = CalculateMedianInputSpec
+    output_spec = CalculateMedianOutputSpec
+
+    def __init__(self, *args, **kwargs):
+        super(CalculateMedian, self).__init__(*args, **kwargs)
+        self._median_files = []
+
+    def _gen_fname(self, suffix, idx=None, ext=None):
+        if idx:
+            in_file = self.inputs.in_files[idx]
+        else:
+            if isinstance(self.inputs.in_files, list):
+                in_file = self.inputs.in_files[0]
+            else:
+                in_file = self.inputs.in_files
+        fname, in_ext = op.splitext(op.basename(in_file))
+        if in_ext == '.gz':
+            fname, in_ext2 = op.splitext(fname)
+            in_ext = in_ext2 + in_ext
+        if ext is None:
+            ext = in_ext
+        if ext.startswith('.'):
+            ext = ext[1:]
+        if self.inputs.median_file:
+            outname = self.inputs.median_file
+        else:
+            outname = '{}_{}'.format(fname, suffix)
+        if idx:
+            outname += str(idx)
+        return op.abspath('{}.{}'.format(outname, ext))
+
+    def _run_interface(self, runtime):
+        total = None
+        self._median_files = []
+        for idx, fname in enumerate(filename_to_list(self.inputs.in_files)):
+            img = nb.load(fname, mmap=NUMPY_MMAP)
+            data = np.median(img.get_data(), axis=3)
+            if self.inputs.median_per_file:
+                self._median_files.append(self._write_nifti(img, data, idx))
+            else:
+                if total is None:
+                    total = data
+                else:
+                    total += data
+        if not self.inputs.median_per_file:
+            self._median_files.append(self._write_nifti(img, total, idx))
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs['median_files'] = self._median_files
+        return outputs
+
+    def _write_nifti(self, img, data, idx, suffix='median'):
+        if self.inputs.median_per_file:
+            median_img = nb.Nifti1Image(data, img.affine, img.header)
+            filename = self._gen_fname(suffix, idx=idx)
+        else:
+            median_img = nb.Nifti1Image(data/(idx+1), img.affine, img.header)
+            filename = self._gen_fname(suffix)
+        median_img.to_filename(filename)
+        return filename
 
 
 # Deprecated interfaces ------------------------------------------------------
