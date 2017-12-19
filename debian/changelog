@@ -6,8 +6,9 @@ nipype (0.14.0-1) unstable; urgency=medium
   * debian/
     - boosted debhelper to 9
     - boosted debian policy to 4.1.2
+    - added python-packaging to build-depends and depends
 
- -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 18 Dec 2017 09:49:54 -0500
+ -- Yaroslav Halchenko <debian@onerussian.com>  Tue, 19 Dec 2017 11:37:46 -0500
 
 nipype (0.13.1-1) experimental; urgency=medium
 

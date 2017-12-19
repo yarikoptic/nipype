@@ -5,6 +5,7 @@ Maintainer: NeuroDebian Team <team@neuro.debian.net>
 Uploaders: Yaroslav Halchenko <debian@onerussian.com>, Michael Hanke <michael.hanke@gmail.com>
 Build-Depends: cdbs, debhelper (>= 9), python (>= 2.6), python-setuptools (>= 0.6),
                python-sphinx (>= 0.6), 
+               python-packaging,
                python-pytest,
                python-pydotplus,
                python-click,
@@ -34,6 +35,7 @@ Architecture: all
 Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends},
          python-click,
          python-configparser,
+         python-packaging,
          python-scipy,
          python-simplejson,
          python-traits (>= 4.0) | python-traits4,
