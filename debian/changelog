@@ -3,12 +3,14 @@ nipype (0.14.0-1) unstable; urgency=medium
   * Fresh upstream release
     - dropped debian/patches/up*
     - should not FTBFS any longer (Closes: #848777)
-  * debian/
+  * debian/control
     - boosted debhelper to 9
     - boosted debian policy to 4.1.2
     - added python-packaging to build-depends and depends
+    - downgraded cfflib to Recommends and removed from B-Depends
+      (no longer developed etc)
 
- -- Yaroslav Halchenko <debian@onerussian.com>  Tue, 19 Dec 2017 11:37:46 -0500
+ -- Yaroslav Halchenko <debian@onerussian.com>  Tue, 19 Dec 2017 14:14:49 -0500
 
 nipype (0.13.1-1) experimental; urgency=medium
 
