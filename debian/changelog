@@ -9,6 +9,8 @@ nipype (0.14.0-1) unstable; urgency=medium
     - added python-packaging to build-depends and depends
     - downgraded cfflib to Recommends and removed from B-Depends
       (no longer developed etc)
+  * debian/patches
+    - make sphinx.ext.imgmath optionally needed
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Tue, 19 Dec 2017 14:14:49 -0500
 
