@@ -3,6 +3,9 @@ nipype (0.14.0-1) unstable; urgency=medium
   * Fresh upstream release
     - dropped debian/patches/up*
     - should not FTBFS any longer (Closes: #848777)
+  * debian/
+    - boosted debhelper to 9
+    - boosted debian policy to 4.1.2
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 18 Dec 2017 09:49:54 -0500
 
