@@ -1,3 +1,11 @@
+nipype (0.14.0-2) UNRELEASED; urgency=medium
+
+  * debian/control
+    - upstream requires traits 4.5.0:
+      https://github.com/nipy/nipype/issues/2346
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Fri, 19 Jan 2018 17:25:08 -0500
+
 nipype (0.14.0-1) unstable; urgency=medium
 
   * Fresh upstream release
