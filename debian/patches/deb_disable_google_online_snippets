@@ -169,7 +169,6 @@
 -         clear: none;
 -      }
 -    </style>
-\ No newline at end of file
 +   <div id="cse" style="width: 100%;">Google custom search is disabled in offline docs</div>
 --- a/doc/_templates/gse.html
 +++ b/doc/_templates/gse.html
