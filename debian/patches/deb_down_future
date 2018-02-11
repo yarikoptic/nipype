@@ -19,7 +19,7 @@ Last-Update: 2017-05-23
  click>=6.6.0
 --- a/nipype/info.py
 +++ b/nipype/info.py
-@@ -103,7 +103,7 @@ SCIPY_MIN_VERSION = '0.14'
+@@ -106,7 +106,7 @@ SCIPY_MIN_VERSION = '0.14'
  TRAITS_MIN_VERSION = '4.6'
  DATEUTIL_MIN_VERSION = '2.2'
  PYTEST_MIN_VERSION = '3.0'
