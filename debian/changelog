@@ -1,11 +1,11 @@
-nipype (1.0.0-1) unstable; urgency=medium
+nipype (1.0.0+git69-gdb2670326-1) unstable; urgency=medium
 
-  * Fresh upstream release
+  * Fresh upstream post-release snapshot
   * debian/control
     - upstream requires traits 4.5.0:
       https://github.com/nipy/nipype/issues/2346
 
- -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 29 Jan 2018 22:31:25 -0500
+ -- Yaroslav Halchenko <debian@onerussian.com>  Sun, 11 Feb 2018 00:10:19 -0500
 
 nipype (0.14.0-1) unstable; urgency=medium
 
