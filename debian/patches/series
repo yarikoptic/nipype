@@ -1,6 +1,5 @@
 deb_imgmath_optional
 deb_down_future
-# may be would work without?
-# deb_git_hash
+deb_git_hash
 deb_robust_apidocgen
 deb_disable_google_online_snippets
