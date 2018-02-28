@@ -1,3 +1,9 @@
+nipype (1.0.1-1) unstable; urgency=medium
+
+  * Fresh upstream release
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Wed, 28 Feb 2018 13:22:47 -0500
+
 nipype (1.0.0+git69-gdb2670326-1) unstable; urgency=medium
 
   * Fresh upstream post-release snapshot

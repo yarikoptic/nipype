@@ -19,6 +19,7 @@ IPYTHONPATH := $(shell dpkg --compare-versions $(IPYTHONVER) lt 1 \
 build/python-nipype::
 	mkdir -p build
 	echo "backend : Agg" >| build/matplotlibrc
+	/bin/ls doc/changelog/*changelog | tac | xargs cat >| debian/nipype.changelog
 
 #
 # Documentation
@@ -58,7 +59,7 @@ DEB_INSTALL_DOCS_python-nipype-doc := doc/_build/html
 #doc/_build/latex/nipype.pdf
 
 clean::
-	rm -rf build pypeline.log
+	rm -rf build pypeline.log debian/nipype.changelog
 	$(MAKE) -C doc clean
 
 .PHONY: doc clean
