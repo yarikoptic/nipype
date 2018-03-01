@@ -5,6 +5,7 @@ Maintainer: NeuroDebian Team <team@neuro.debian.net>
 Uploaders: Yaroslav Halchenko <debian@onerussian.com>, Michael Hanke <michael.hanke@gmail.com>
 Build-Depends: cdbs, debhelper (>= 9), python (>= 2.6), python-setuptools (>= 0.6),
                python-sphinx (>= 0.6), 
+               python-numpydoc,
                python-packaging,
                python-pytest,
                python-pydotplus,
