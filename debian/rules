@@ -16,6 +16,9 @@ IPYTHONVER := $(shell ipython -V || echo 0) # recent only needed for sphinxext
 IPYTHONPATH := $(shell dpkg --compare-versions $(IPYTHONVER) lt 1 \
 				 && echo ":/usr/lib/python$(PYVER)/dist-packages/IPython1X" || echo '')
 
+# just to prevent useless complaints
+export FSLOUTPUTTYPE=NIFTI_GZ
+
 build/python-nipype::
 	mkdir -p build
 	echo "backend : Agg" >| build/matplotlibrc
