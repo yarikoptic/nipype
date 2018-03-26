@@ -1,6 +1,6 @@
 --- a/nipype/info.py
 +++ b/nipype/info.py
-@@ -145,8 +145,8 @@ REQUIRES = [
+@@ -144,8 +144,8 @@ REQUIRES = [
      'funcsigs',
      'pytest>=%s' % PYTEST_MIN_VERSION,
      'mock',

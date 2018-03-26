@@ -1,3 +1,12 @@
+nipype (1.0.1+git97-g803982c21-1) neurodebian-devel; urgency=medium
+
+  * New upstream snapshot from 1.0.1-97-g803982c21
+  * debian/patches - refreshed
+  * debian/control
+    - added explicit dependency on python-dateutil (>= 2.2) as upstream
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 26 Mar 2018 17:25:12 -0400
+
 nipype (1.0.1-1) unstable; urgency=medium
 
   * Fresh upstream release
