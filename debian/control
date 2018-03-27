@@ -9,6 +9,7 @@ Build-Depends: cdbs, debhelper (>= 9), python (>= 2.6), python-setuptools (>= 0.
                python-numpydoc,
                python-packaging,
                python-pytest,
+               python-pytest-xdist,
                python-pydotplus,
                python-click,
                python-configparser,
@@ -52,6 +53,7 @@ Recommends: ipython, python-pytest, graphviz, python-xvfbwrapper, mayavi2,
             python-cfflib,
 Suggests: fsl, afni, python-nipy, slicer, matlab-spm8,
           python-pyxnat, mne-python, elastix, ants,
+          python-pytest-xdist,
 Provides: ${python:Provides}
 Description: Neuroimaging data analysis pipelines in Python
  Nipype interfaces Python to other neuroimaging packages and creates

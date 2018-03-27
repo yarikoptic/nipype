@@ -4,6 +4,7 @@ nipype (1.0.1+git97-g803982c21-1) neurodebian-devel; urgency=medium
   * debian/patches - refreshed
   * debian/control
     - added explicit dependency on python-dateutil (>= 2.2) as upstream
+    - added python-pytest-xdist into bdepends since tests now use -n auto
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 26 Mar 2018 17:25:12 -0400
 
