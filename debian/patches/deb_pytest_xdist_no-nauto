@@ -1,0 +1,17 @@
+From: Yaroslav Halchenko <debian@onerussian.com>
+Subject: Disable automatic parallel runs within pytest
+ Some elderly python-pytest-xdist (e.g. 1.8.0 on 16.04) do not support -n auto
+ so easier to just disable it for nowbeing
+Origin: NeuroDebian
+Last-Update: 2018-03-27
+
+--- a/nipype/pytest.ini
++++ b/nipype/pytest.ini
+@@ -1,6 +1,6 @@
+ [pytest]
+ norecursedirs = .git build dist doc nipype/external tools examples src
+-addopts = --doctest-modules -n auto
++addopts = --doctest-modules
+ doctest_optionflags = ALLOW_UNICODE NORMALIZE_WHITESPACE
+ env =
+     PYTHONHASHSEED=0
