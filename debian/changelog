@@ -1,12 +1,12 @@
-nipype (1.0.1+git97-g803982c21-1) neurodebian-devel; urgency=medium
+nipype (1.0.2-1) unstable; urgency=medium
 
-  * New upstream snapshot from 1.0.1-97-g803982c21
+  * New upstream release
   * debian/patches - refreshed
   * debian/control
     - added explicit dependency on python-dateutil (>= 2.2) as upstream
     - added python-pytest-xdist into bdepends since tests now use -n auto
 
- -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 26 Mar 2018 17:25:12 -0400
+ -- Yaroslav Halchenko <debian@onerussian.com>  Wed, 28 Mar 2018 08:50:08 -0400
 
 nipype (1.0.1-1) unstable; urgency=medium
 
