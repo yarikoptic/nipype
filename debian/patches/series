@@ -2,6 +2,7 @@ deb_pytest_xdist_no-nauto
 deb_no_explicit_pydot
 deb_imgmath_optional
 deb_down_future
+deb_no_strict_versions
 deb_robust_apidocgen
 deb_disable_google_online_snippets
 # should be the last one, not to be applied under git, requires exported tree

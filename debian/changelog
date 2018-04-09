@@ -1,3 +1,11 @@
+nipype (1.0.2-2) neurodebian; urgency=medium
+
+  * debian/patches/deb_no_strict_versions
+    - to allow for python-prov 1.4.0 and above
+      see https://github.com/nipy/nipype/issues/2531
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 09 Apr 2018 13:41:36 -0400
+
 nipype (1.0.2-1) unstable; urgency=medium
 
   * New upstream release
