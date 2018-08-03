@@ -1,13 +1,13 @@
 --- a/nipype/info.py
 +++ b/nipype/info.py
-@@ -144,8 +144,8 @@ REQUIRES = [
-     'funcsigs',
+@@ -145,8 +145,8 @@ REQUIRES = [
      'pytest>=%s' % PYTEST_MIN_VERSION,
+     'pytest-xdist',
      'mock',
 -    'pydotplus',
 -    'pydot>=%s' % PYDOT_MIN_VERSION,
 +    # 'pydotplus',
 +    # 'pydot>=%s' % PYDOT_MIN_VERSION,
      'packaging',
+     'futures; python_version == "2.7"',
  ]
- 
