@@ -4,12 +4,14 @@ Priority: optional
 Maintainer: NeuroDebian Team <team@neuro.debian.net>
 Uploaders: Yaroslav Halchenko <debian@onerussian.com>, Michael Hanke <michael.hanke@gmail.com>
 Build-Depends: cdbs, debhelper (>= 9), python (>= 2.6), python-setuptools (>= 0.6),
+               python-concurrent.futures,
                python-sphinx (>= 0.6), 
                python-dateutil (>= 2.2), 
                python-numpydoc,
                python-packaging,
                python-pytest,
                python-pytest-xdist,
+               python-pydot,
                python-pydotplus,
                python-click,
                python-configparser,
@@ -35,6 +37,7 @@ Package: python-nipype
 Section: python
 Architecture: all
 Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends},
+         python-concurrent.futures,
          python-click,
          python-configparser,
          python-dateutil (>= 2.2), 
@@ -49,7 +52,7 @@ Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends},
          python-prov,
          python-psutil,
 Recommends: ipython, python-pytest, graphviz, python-xvfbwrapper, mayavi2,
-            python-mock, python-pydotplus,
+            python-mock, python-pydotplus, python-pydot,
             python-cfflib,
 Suggests: fsl, afni, python-nipy, slicer, matlab-spm8,
           python-pyxnat, mne-python, elastix, ants,

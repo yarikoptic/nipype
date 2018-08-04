@@ -1,6 +1,9 @@
 nipype (1.1.1-1) unstable; urgency=medium
 
   * Fresh upstream release
+  * debian/control
+    + python-concurrent.futures and python-pydot to B-Depends and 
+      Depends for python-nipype
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Fri, 03 Aug 2018 13:00:43 -0400
 
