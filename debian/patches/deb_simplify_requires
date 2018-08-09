@@ -1,0 +1,21 @@
+From: Yaroslav Halchenko <debian@onerussian.com>
+Subject: BF(TEMP): remove python_version== from requires spec
+
+    Is not understood by older dh_python e.g. on debian stretch
+    leading to a bizzare dependency.  It would need to be removed for
+    python3 support
+
+Origin: NeuroDebian
+Last-Update: 2018-08-09
+
+--- a/nipype/info.py
++++ b/nipype/info.py
+@@ -148,7 +148,7 @@ REQUIRES = [
+     'pydotplus',
+     'pydot>=%s' % PYDOT_MIN_VERSION,
+     'packaging',
+-    'futures; python_version == "2.7"',
++    'futures',
+ ]
+ 
+ if sys.version_info <= (3, 4):
