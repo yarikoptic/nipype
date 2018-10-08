@@ -1,5 +1,5 @@
 From: Yaroslav Halchenko <debian@onerussian.com>
-Subject: manually specifying the hash for 0.13.1 release
+Subject: manually specifying the hash for the release
  Otherwise leads to parser failures etc
 
 Last-Update: 2017-05-23
@@ -12,6 +12,6 @@ Last-Update: 2017-05-23
  [commit hash]
  # The line below may contain a valid hash if it has been substituted during 'git archive'
 -archive_subst_hash=%h
-+archive_subst_hash=b8a8c3a993f7304a3644de926ad27f4c9626e51f
++archive_subst_hash=ec7457c235fdf5364536b0a8ab2bdfe461af5beb
  # This line may be modified by the install process
  install_hash=
