@@ -1,5 +1,3 @@
-changeset_bf-networkx-graph-compat.diff
-changeset_bf-resource-monitor.diff
 deb_simplify_requires
 deb_pytest_xdist_no-nauto
 deb_no_explicit_pydot

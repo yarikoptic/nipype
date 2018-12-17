@@ -12,6 +12,6 @@ Last-Update: 2017-05-23
  [commit hash]
  # The line below may contain a valid hash if it has been substituted during 'git archive'
 -archive_subst_hash=%h
-+archive_subst_hash=ec7457c235fdf5364536b0a8ab2bdfe461af5beb
++archive_subst_hash=f2bbcc917899c98102bdeb84db61ea4b84cbf2f5
  # This line may be modified by the install process
  install_hash=
