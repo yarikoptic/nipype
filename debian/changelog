@@ -1,6 +1,11 @@
 nipype (1.1.7-1) unstable; urgency=medium
 
   * Fresh upstream release
+  * debian/patches
+    - refreshed and upstramed changeset_* dropped
+    - added deb_no_neurdflib to avoid requiring neurdflib for now.
+      All the RDF handling dependencies are too much in flux ATM.
+      Let's see if the reset of functionality/tests pass during building.
 
  -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 17 Dec 2018 14:45:19 -0500
 
