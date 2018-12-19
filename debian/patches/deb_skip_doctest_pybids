@@ -1,0 +1,30 @@
+--- a/nipype/interfaces/io.py
++++ b/nipype/interfaces/io.py
+@@ -2747,9 +2747,9 @@ class BIDSDataGrabber(LibraryBaseInterfa
+     from a project, and makes BIDS entities (e.g. subject) available for
+     filtering outputs.
+ 
+-    >>> bg = BIDSDataGrabber()
+-    >>> bg.inputs.base_dir = 'ds005/'
+-    >>> bg.inputs.subject = '01'
++    >>> bg = BIDSDataGrabber() # doctest: +SKIP
++    >>> bg.inputs.base_dir = 'ds005/' # doctest: +SKIP
++    >>> bg.inputs.subject = '01' # doctest: +SKIP
+     >>> results = bg.run() # doctest: +SKIP
+ 
+ 
+@@ -2758,10 +2758,10 @@ class BIDSDataGrabber(LibraryBaseInterfa
+     are filtered on common entities, which can be explicitly defined as
+     infields.
+ 
+-    >>> bg = BIDSDataGrabber(infields = ['subject'], outfields = ['dwi'])
+-    >>> bg.inputs.base_dir = 'ds005/'
+-    >>> bg.inputs.subject = '01'
+-    >>> bg.inputs.output_query['dwi'] = dict(modality='dwi')
++    >>> bg = BIDSDataGrabber(infields = ['subject'], outfields = ['dwi']) # doctest: +SKIP
++    >>> bg.inputs.base_dir = 'ds005/' # doctest: +SKIP
++    >>> bg.inputs.subject = '01' # doctest: +SKIP
++    >>> bg.inputs.output_query['dwi'] = dict(modality='dwi') # doctest: +SKIP
+     >>> results = bg.run() # doctest: +SKIP
+ 
+     """

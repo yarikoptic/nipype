@@ -1,3 +1,4 @@
+deb_skip_doctest_pybids
 deb_simplify_requires
 deb_pytest_xdist_no-nauto
 deb_no_explicit_pydot
