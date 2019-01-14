@@ -1,3 +1,11 @@
+nipype (1.1.7-2) neurodebian; urgency=medium
+
+  * d/p/deb_no_strict_versions
+    - do not require recent pytest - version was boosted upstream only to
+      workaround problems with some CIs, and now forbids us to use backport
+
+ -- Yaroslav Halchenko <debian@onerussian.com>  Mon, 14 Jan 2019 12:30:32 -0500
+
 nipype (1.1.7-1) unstable; urgency=medium
 
   * Fresh upstream release

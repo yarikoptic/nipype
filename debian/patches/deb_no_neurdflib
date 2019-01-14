@@ -9,7 +9,7 @@
 +    #'neurdflib',
      'click>=%s' % CLICK_MIN_VERSION,
      'funcsigs',
-     'pytest>=%s' % PYTEST_MIN_VERSION,
+     'pytest',
 --- a/requirements.txt
 +++ b/requirements.txt
 @@ -7,7 +7,7 @@ nibabel>=2.1.0
