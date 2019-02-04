@@ -1,13 +1,13 @@
 --- a/nipype/info.py
 +++ b/nipype/info.py
-@@ -150,8 +150,8 @@ REQUIRES = [
-     'pytest>=%s' % PYTEST_MIN_VERSION,
-     'pytest-xdist',
-     'mock',
+@@ -146,8 +146,8 @@ REQUIRES = [
+     'neurdflib',
+     'click>=%s' % CLICK_MIN_VERSION,
+     'funcsigs',
 -    'pydotplus',
 -    'pydot>=%s' % PYDOT_MIN_VERSION,
 +    # 'pydotplus',
 +    # 'pydot>=%s' % PYDOT_MIN_VERSION,
      'packaging',
      'futures',
- ]
+     'configparser',

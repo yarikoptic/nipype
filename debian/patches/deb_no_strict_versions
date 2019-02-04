@@ -1,13 +1,12 @@
 --- a/nipype/info.py
 +++ b/nipype/info.py
-@@ -106,12 +106,13 @@ NUMPY_MIN_VERSION = '1.9.0'
- # https://www.opensourceanswers.com/blog/you-shouldnt-use-python-37-for-data-science-right-now.html
+@@ -107,11 +107,12 @@ NUMPY_MIN_VERSION = '1.9.0'
  NUMPY_MIN_VERSION_37 = '1.15.3'
+ NUMPY_BAD_VERSION_27 = '1.16.0'
  SCIPY_MIN_VERSION = '0.14'
 -TRAITS_MIN_VERSION = '4.6'
 +TRAITS_MIN_VERSION = '4.5'
  DATEUTIL_MIN_VERSION = '2.2'
- PYTEST_MIN_VERSION = '3.6'
  FUTURE_MIN_VERSION = '0.15.2'
  SIMPLEJSON_MIN_VERSION = '3.8.0'
 -PROV_VERSION = '1.5.2'
@@ -16,12 +15,3 @@
  CLICK_MIN_VERSION = '6.6.0'
  PYDOT_MIN_VERSION = '1.2.3'
  
-@@ -147,7 +148,7 @@ REQUIRES = [
-     'neurdflib',
-     'click>=%s' % CLICK_MIN_VERSION,
-     'funcsigs',
--    'pytest>=%s' % PYTEST_MIN_VERSION,
-+    'pytest',
-     'pytest-xdist',
-     'mock',
-     # 'pydotplus',

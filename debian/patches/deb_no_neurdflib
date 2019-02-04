@@ -1,6 +1,6 @@
 --- a/nipype/info.py
 +++ b/nipype/info.py
-@@ -145,7 +145,8 @@ REQUIRES = [
+@@ -144,7 +144,8 @@ REQUIRES = [
      'future>=%s' % FUTURE_MIN_VERSION,
      'simplejson>=%s' % SIMPLEJSON_MIN_VERSION,
      'prov>=%s' % PROV_VERSION,
@@ -9,7 +9,7 @@
 +    #'neurdflib',
      'click>=%s' % CLICK_MIN_VERSION,
      'funcsigs',
-     'pytest',
+     # 'pydotplus',
 --- a/requirements.txt
 +++ b/requirements.txt
 @@ -7,7 +7,7 @@ nibabel>=2.1.0
