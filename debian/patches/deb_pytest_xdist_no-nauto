@@ -1,7 +1,0 @@
-From: Yaroslav Halchenko <debian@onerussian.com>
-Subject: Disable automatic parallel runs within pytest
- Some elderly python-pytest-xdist (e.g. 1.8.0 on 16.04) do not support -n auto
- so easier to just disable it for nowbeing
-Origin: NeuroDebian
-Last-Update: 2018-03-27
-
